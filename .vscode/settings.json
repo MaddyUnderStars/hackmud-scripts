@@ -1,0 +1,12 @@
+{
+	"javascript.validate.enable": true,
+	"typescript.validate.enable": true,
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"files.exclude": {
+		"node_modules": true,
+		"package-lock.json": true,
+		"patches": true,
+		"LICENSE": true,
+		"player.d.ts": true
+	}
+}
