@@ -5,7 +5,7 @@ export default function (context: Context, args?: unknown) {
     throwWhitelist(context.caller);
 
     const sources: Array<[() => Array<Record<string, unknown>>, string]> = [
-        [() => $hs.sys.upgrades({ full: true }), context.caller],
+        [() => $fs.sys.upgrades_of_owner({ full: true }), "maddy"],
         [() => $ms.ira.ups({ full: true }), "ira"],
         [() => $ms.squizzy.ups({ full: true }), "squizzy"],
     ];
