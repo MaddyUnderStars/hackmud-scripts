@@ -41,5 +41,5 @@ export default function (context: Context, args?: unknown) {
 
     $db.us({ _id: `sys_log_${context.caller}` }, { $set: { t: new Date() } });
 
-    return table(out, context.cols);
+    return table(out, context.cols) + (args ? "" : "\n\npass empty param to view all* logs\n\n*as many as possible");
 }
