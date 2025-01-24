@@ -1,9 +1,8 @@
-import { throwWhitelist } from "/lib/auth";
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 
 export default (context: Context, args?: unknown) => {
-	throwWhitelist(context.caller);
+	$ms.maddy.whitelist();
 
 	const keys = $ls.maddy.keyring({ list: true });
 	if (!Array.isArray(keys)) return keys;
