@@ -1,4 +1,3 @@
-import { throwWhitelist } from "/lib/auth";
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 
@@ -7,6 +6,7 @@ const keyrings = {
 	ira: $ls.ira.keyring,
 	squizzy: $ls.squizzy.keyring,
 	katsu: $ls.katsu.keyring,
+	uzuri: $ls.uzuri.keyring,
 	// verdance: $s.verdance.keyring,
 };
 
@@ -16,6 +16,7 @@ interface Key {
 	sn: string;
 	rarity: number;
 	loaded: boolean;
+	tier: number;
 }
 
 const getAllKeys = () => {
@@ -25,11 +26,19 @@ const getAllKeys = () => {
 
 		keys.push(...ret.map((x) => Object.assign({}, x, { user })));
 	}
-	return keys;
+	return keys.sort((a, b) => {
+		if (a.tier === b.tier) {
+			if (a.rarity === b.rarity) {
+				return a.k3y === b.k3y ? 1 : -1;
+			}
+			return b.rarity - a.rarity;
+		}
+		return b.tier - a.tier;
+	});
 };
 
 export default (context: Context, args: unknown) => {
-	throwWhitelist(context.caller);
+	$ms.maddy.whitelist();
 
 	// no args, return list of keys from all users
 	if (!args || !isRecord(args)) {
@@ -44,11 +53,14 @@ export default (context: Context, args: unknown) => {
 
 		return table(
 			[
-				["k3y", "user", "loaded"],
+				["k3y", "tier", "user", "loaded"],
 				[],
-				...keys
-					.sort((a, b) => (a.k3y === b.k3y ? 1 : -1))
-					.map((x) => [`\`${x.rarity}${x.k3y}\``, x.user, `${x.loaded}`]),
+				...keys.map((x) => [
+					`\`${x.rarity}${x.k3y}\``,
+					`${x.tier}`,
+					x.user,
+					`${x.loaded}`,
+				]),
 			],
 			context.cols,
 		);
@@ -104,8 +116,8 @@ export default (context: Context, args: unknown) => {
 
 		$ls.sys.xfer_upgrade_to({ i: keys.map((x) => x.i), to: "squizzy" });
 
-        // if this is the only arg, just return now
-        // otherwise, we might want to load
+		// if this is the only arg, just return now
+		// otherwise, we might want to load
 		if (Object.keys(args).length === 1) return { ok: true };
 	}
 
