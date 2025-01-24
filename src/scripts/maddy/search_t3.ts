@@ -60,7 +60,8 @@ export default function (context: Context, args?: unknown) {
 			username,
 			pin: String(pin).padStart(4),
 			a_t: "w_ek",
-            perform: "flow"
+            perform: "flow",
+            work: "calendar",
 		}) as string;
 
 		// get the offset
@@ -76,6 +77,7 @@ export default function (context: Context, args?: unknown) {
 				pin: String(pin).padStart(4),
 				a_t: "w_ek",
                 perform: "flow",
+                work: "calendar",
 				d,
 			}) as string;
 
@@ -90,6 +92,7 @@ export default function (context: Context, args?: unknown) {
 					pin: String(pin).padStart(4),
 					a_t: "w_ek",
                     perform: "flow",
+                    work: "calendar",
 					d,
 					i: index,
 				}) as string;
