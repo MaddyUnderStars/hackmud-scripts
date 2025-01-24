@@ -10,5 +10,5 @@ export default function (context: Context, args?: unknown) {
 
 	$ms.squizzy.xfer({ amount: cost });
 
-	return $ms.katsu.find_usernames();
+	return $fs.katsu.find_usernames();
 }

@@ -1,3 +1,4 @@
+
 const t1_corps = [
 	$fs.bunnybat_hut.public,
 	$fs.cyberdine.public,
@@ -8,8 +9,6 @@ const t1_corps = [
 	$fs.tyrell.public,
 	$fs.weyland.public,
 ];
-
-const myUsers = ["maddy", "ira", "squizzy", "katsu"];
 
 const read = (
 	scriptor: (...rest: unknown[]) => unknown,
@@ -25,9 +24,7 @@ const read = (
 };
 
 export default function (context: Context, args?: unknown) {
-    if (!myUsers.includes(context.caller)) {
-        return $ms.squizzy.xfer();
-    }
+	$ms.maddy.whitelist();
 
 	if (args) {
 		return $db
