@@ -1,13 +1,13 @@
-import { throwWhitelist } from "/lib/auth";
 import { table } from "/lib/table";
 
 export default function (context: Context, args?: unknown) {
-    throwWhitelist(context.caller);
+	$ms.maddy.whitelist();
 
     const sources: Array<[() => Array<Record<string, unknown>>, string]> = [
         [() => $fs.sys.upgrades_of_owner({ full: true }), "maddy"],
         [() => $ms.ira.ups({ full: true }), "ira"],
         [() => $ms.squizzy.ups({ full: true }), "squizzy"],
+        [() => $ms.uzuri.ups({ full: true }), "uzuri"],
     ];
 
     const upgrades: {
@@ -25,7 +25,10 @@ export default function (context: Context, args?: unknown) {
             const s = JSON.parse(JSON.stringify(u));
             for (const key of ["i", "sn", "loaded", "description"]) delete s[key];
 
-            if (upgrades.find((x) => x.name === u.name && x.rarity === u.rarity)?.cost)
+            if (upgrades.find((x) => Object.keys(s).every((key) => {
+                //@ts-ignore
+                return s[key] === x[key]
+            }))?.cost)
                 continue;
 
             const market = $fs.market.browse(s);
