@@ -1,6 +1,6 @@
+
 export default (context: Context, args: unknown[]) => {
-	const myUsers = ["maddy", "ira", "squizzy", "katsu"];
-	if (!myUsers.includes(context.caller)) return $ms.squizzy.xfer();
+    $ms.maddy.whitelist();
 
 	const ups = $hs.sys.upgrades_of_owner({ full: true });
 
