@@ -6,8 +6,7 @@ const exec = (scriptor: Scriptor, args?: unknown): string => {
 };
 
 export default function (context: Context, args?: unknown) {
-    if (!isRecord(args)) return { ok: false };
-    if (!isScriptor(args.s)) return { ok: false };
+    if (!isRecord(args) || !isScriptor(args.s)) return { ok: false, msg: "maddy.search_t1 { s: #s.corp.script }" };
 
     const home = exec(args.s);
     const empty = exec(args.s, {});
@@ -48,7 +47,7 @@ export default function (context: Context, args?: unknown) {
     const locs = [];
     for (const project of projects) {
         if (_END - Date.now() < 500) {
-            locs.push("\nran out of time.")
+            locs.push("\nran out of time.");
             break;
         }
 
@@ -61,5 +60,5 @@ export default function (context: Context, args?: unknown) {
         locs.push(...curr.split("\n").filter(x => x.match(/[A-Za-z_\d]+?\.[A-Za-z_\d]+?$/gmi)));
     }
 
-    return locs.map(x => `\/t1 ${x}`);
+    return locs.map(x => `maddy.t1 { s: #s.${x} }`);
 }
