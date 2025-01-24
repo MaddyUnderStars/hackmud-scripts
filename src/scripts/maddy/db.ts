@@ -1,6 +1,8 @@
 import { isRecord } from "/lib/isRecord";
 
 export default function (context: Context, args?: unknown) {
+	$ms.maddy.whitelist();
+
 	if (!isRecord(args) || !args.t || !args.a || !isRecord(args.a))
 		return {
 			ok: false,
