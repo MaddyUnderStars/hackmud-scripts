@@ -2,8 +2,31 @@
 
 import { isRecord } from "/lib/isRecord";
 
+const SECLEVELS = {
+    f: 0,
+    h: 1,
+    m: 2,
+    l: 3,
+    n: 4,
+    fullsec: 0,
+    highsec: 1,
+    midsec: 2,
+    lowsec: 3,
+    nullsec: 4,
+    full: 0,
+    high: 1,
+    mid: 2,
+    low: 3,
+    null: 4,
+    "0": 0,
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+} as Record<string, number>;
+
 const HELP_TEXT =
-    "public scripts helper.\nmaddy.scripts { level: number, page?: number }";
+    `public scripts helper.\nmaddy.scripts { level: number|string, page?: number }\n\nlevel can be any of:\n- ${[0, 1, 2, 3, 4, ...Object.keys(SECLEVELS)].map(x => JSON.stringify(x)).join("\n- ")}`;
 
 const PUBLICS = [
     (sector?: string) =>
@@ -19,7 +42,9 @@ const PUBLICS = [
 ];
 
 const allSectors = (e: number) => {
-    return Object.values(PUBLICS.filter((_, i) => i === e)).flatMap(x => x() as string[]);
+    return Object.values(PUBLICS.filter((_, i) => i === e)).flatMap(
+        (x) => x() as string[],
+    );
 };
 
 export default (context: Context, args?: unknown) => {
@@ -27,7 +52,11 @@ export default (context: Context, args?: unknown) => {
 
     const page = "page" in args && typeof args.page === "number" ? args.page : 0;
     const level =
-        "level" in args && typeof args.level === "number" ? args.level : 0;
+        "level" in args && typeof args.level === "number"
+            ? args.level
+            : typeof args.level === "string"
+                ? (SECLEVELS[args.level] ?? 0)
+                : 0;
 
     if (!PUBLICS[level]) return "level not in range 0-5";
 
@@ -36,7 +65,7 @@ export default (context: Context, args?: unknown) => {
     const sector = sectors[page];
 
     const all = allSectors(level);
-    const joined = $ms.chats.channels().filter(x => all.includes(x));
+    const joined = $ms.chats.channels().filter((x) => all.includes(x));
     for (const j of joined) {
         if (j === sector) continue;
         $ms.chats.leave({ channel: j });
