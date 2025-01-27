@@ -35,6 +35,7 @@ export default (context: Context) => {
             ["`2FS`", "maddy.search_t1", "Really bad t1 corp loc search"],
             [],
             ["`HMS`", "maddy.scripts", "Public scripts viewer. MS due to chats join/leave"],
+            ["`HMS`", "maddy.corps", "Search for corp scripts. Missec due to maddy.scripts usage"],
             [],
             ["`FLS`", "maddy.log", "sys.access_log viewer. Shows all unread logs made by users"],
         ], context.cols)
