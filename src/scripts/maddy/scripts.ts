@@ -73,5 +73,9 @@ export default (context: Context, args?: unknown) => {
 
     $ms.chats.join({ channel: sector });
 
+    if (context.calling_script) {
+        return PUBLICS[level](sector);
+    }
+
     return `${$fs.scripts.lib().columnize(PUBLICS[level](sector) as string[])}\n\ntotal pages: ${sectors.length - 1}`;
 };
