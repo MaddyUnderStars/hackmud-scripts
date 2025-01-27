@@ -6,6 +6,7 @@ export default (context: Context) => {
         "verdance",
         "squizzy",
         "uzuri",
+        "oscilio"
     ]
 
     if (!allowed.includes(context.caller)) {
