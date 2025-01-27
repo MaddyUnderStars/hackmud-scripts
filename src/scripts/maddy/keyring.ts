@@ -63,6 +63,8 @@ export default (context: Context, args: unknown) => {
 	if (!args || !isRecord(args)) {
 		const keys = getAllKeys(SCRIPT_OWNER);
 
+        if (context.calling_script) return keys;
+
 		return table(
 			[
 				["k3y", "user", "tier", "loaded"],

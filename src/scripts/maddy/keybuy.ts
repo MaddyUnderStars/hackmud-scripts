@@ -4,7 +4,7 @@ import { table } from "/lib/table";
 export default (context: Context, args?: unknown) => {
 	$ms.maddy.whitelist();
 
-	const keys = $ls.maddy.keyring({ list: true });
+	const keys = $ls.maddy.keyring();
 	if (!Array.isArray(keys)) return keys;
 
 	const allKeys = $db
