@@ -7,6 +7,17 @@ import { game_ts_to_date } from "/lib/timestamp";
 const LOG: unknown[] = [];
 
 const handlers: Record<string, (context: Context) => Generator> = {};
+
+handlers.l0cket = function* () {
+	const answers = $db
+		.f({ s: "t1", k: "l0cket", a: { $type: "string" } })
+		.array();
+
+	for (const answer of answers) {
+		yield { l0cket: answer.a };
+	}
+};
+
 handlers.l0ckbox = function* () {
 	const input = yield {};
 
@@ -211,15 +222,44 @@ handlers.sn_w_glock = function* () {
 // it would be better to use a dictionary
 handlers.magnara = function* () {
 	const input = yield { magnara: "" };
-	const word = input.split(" ").splice(-1)[0];
+	const word: string = input.split(" ").splice(-1)[0];
+
+	const sorted = word
+		.split("")
+		.sort((a, b) => a.localeCompare(b))
+		.join("");
+	const existing = $db
+		.f({ _id: `magnara_${sorted}`, word: { $type: "string" } })
+		.first();
+	if (existing) {
+		LOG.push(`magnara dict had word ${existing.word}`);
+		yield { magnara: existing.word };
+
+		// if the existing word didn't work, remove it
+		LOG.push("magnara dict failed, removing");
+		$db.r({ _id: `magnara_${sorted}` });
+	}
+
+	LOG.push(`no magnara dict found for ${sorted}`);
+
+	const LIMIT = 6;
 
 	// if the word is small enough, just brute it
-	if (word.length < 6) {
+	if (word.length < LIMIT) {
 		const gen = permute(word.split(""));
 		for (const perm of gen) {
-			yield { magnara: perm.join("") };
+			const word = perm.join("");
+
+			// I'd rather only do 1 db opt,
+			// but that would involve being able to signal to a solver when it's done
+			// which would be messy at the moment.
+			$db.us({ _id: `magnara_${sorted}` }, { $set: { word } });
+
+			yield { magnara: word };
 		}
 	}
+
+	LOG.push(`magnara length greater than limit (${LIMIT})`);
 };
 
 handlers.CON_SPEC = function* () {
@@ -255,13 +295,21 @@ handlers.CON_SPEC = function* () {
 
 	let ret = "";
 	let curr = indexes[indexes.length - 1];
+	const attempts = [];
 	for (let i = 3; i > 0; i--) {
-		curr +=
-			differences[(differences.length - 1 - i) % (differences.length - 1)];
-		ret += alphabet[curr];
+		const attempt =
+			differences[(differences.length - i - 1) % differences.length];
+		curr += attempt;
+		attempts.push(attempt);
+
+		if (curr < 0) curr += alphabet.length;
+
+		ret += alphabet[curr % alphabet.length];
 	}
 
 	yield { CON_SPEC: ret.toUpperCase() };
+
+	return { indexes, differences, attempts };
 };
 
 handlers.DATA_CHECK = function* () {
@@ -337,7 +385,7 @@ export default function (context: Context, args?: unknown) {
 		const handler = handlers[lock];
 		if (!handler) {
 			LOG.push("no handler");
-			return { ok: false, msg: LOG };
+			return { ok: false, msg: LOG.join("\n") };
 		}
 
 		const gen = handler(context);
@@ -347,13 +395,18 @@ export default function (context: Context, args?: unknown) {
 			try {
 				const iter = gen.next(state);
 				if (iter.done) {
-					return { curr: iter.value, LOG };
+					return {
+						ok: false,
+						msg:
+							LOG.join("\n") +
+							(iter.value ? `\n\n${JSON.stringify(iter.value)}` : ""),
+					};
 				}
 				Object.assign(solve, iter.value, args.p);
 				state = exec(solve);
 			} catch (e) {
 				LOG.push(e instanceof Error ? e.message : e);
-				return { ok: false, msg: LOG };
+				return { ok: false, msg: LOG.join("\n") };
 			}
 		}
 	}
