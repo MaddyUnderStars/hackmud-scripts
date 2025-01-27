@@ -1,3 +1,4 @@
+import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 
 export default function (context: Context, args?: unknown) {
@@ -19,6 +20,8 @@ export default function (context: Context, args?: unknown) {
         loaded: boolean;
     }[] = [];
     for (const source of sources) {
+        if (isRecord(args) && args.user !== source[1]) continue;
+
         const list = source[0]();
 
         for (const u of list) {
