@@ -11,26 +11,29 @@ interface Key {
 export default (context: Context, args: unknown) => {
 	$ms.maddy.whitelist();
 
-    if (!isRecord(args)) return { ok: false };
+	if (
+		isRecord(args) &&
+		(typeof args.load === "string" || Array.isArray(args.load))
+	) {
+		const requested: string[] = Array.isArray(args.load)
+			? args.load
+			: [args.load];
 
-	if ("load" in args && typeof args.load === "string") {
-		// if we're a subscript, send our key to them
-		if (context.calling_script) {
-			const keys = $hs.sys.upgrades_of_owner({
-				filter: { k3y: args.load },
-				full: true,
-			});
+		const keys = $hs.sys.upgrades_of_owner({
+			//@ts-ignore
+			filter: { k3y: { $in: requested } },
+			full: true,
+		});
 
-			if (!Array.isArray(keys) || !keys.length)
-				return { ok: false, msg: keys };
+		if (!Array.isArray(keys) || !keys.length) return { ok: false, msg: keys };
 
-			const key: Omit<Key, "user"> = keys[0];
+		const sending: Map<string, string> = new Map(
+			//@ts-expect-error
+			keys.map((x: Omit<Key, "user">) => [x.k3y, x.sn]),
+		);
 
-			$fs.sys.xfer_upgrade_to_caller({ sn: key.sn });
-
-			return { ok: true };
-		}
+		return $fs.sys.xfer_upgrade_to_caller({ sn: [...sending.values()] });
 	}
 
-	return $ls.maddy.keyring(args);
+	return $hs.sys.upgrades_of_owner({ filter: { k3y: null }, full: true });
 };
