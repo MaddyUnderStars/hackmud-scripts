@@ -1,0 +1,1 @@
+export type LockSolver = (context: Context) => Generator;
