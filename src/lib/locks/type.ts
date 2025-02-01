@@ -1,1 +1,1 @@
-export type LockSolver = (context: Context) => Generator;
+export type LockSolver = (context: Context, log: (str: string) => void) => Generator;

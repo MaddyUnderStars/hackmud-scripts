@@ -15,6 +15,7 @@ import { l0cket } from "/lib/locks/l0cket";
 import { magnara } from "/lib/locks/magnara";
 import { sn_w_glock } from "/lib/locks/sn_w_glock";
 import type { LockSolver } from "/lib/locks/type";
+import { createLogger, getLog } from "/lib/log";
 
 const handlers: Record<string, LockSolver> = {};
 
@@ -74,7 +75,7 @@ export default function (context: Context, args?: unknown) {
 	let state = exec(solve);
 
 	const genErrorMsg = () =>
-		`\`zLOCK_ERROR\`\n${getCurrentLock(state)}\n${JSON.stringify(solve)}\n\n${state}`;
+		`\`zLOCK_ERROR\`\n${getCurrentLock(state)}\n${JSON.stringify(solve)}\n\n${state}\n\n-- LOG --\n${getLog().join("\n")}`;
 
 	while (!isBreached(state)) {
 		const lock = getCurrentLock(state);
@@ -82,24 +83,34 @@ export default function (context: Context, args?: unknown) {
 		const handler = handlers[lock];
 		if (!handler) return genErrorMsg();
 
-		const gen = handler(context);
+		const { log, stop } = createLogger(`\`4${lock}\``);
+		const gen = handler(context, log);
 
 		while (getCurrentLock(state) === lock) {
-			if (_END - Date.now() < 500) return genErrorMsg();
+			if (_END - Date.now() < 500) {
+				stop("timeout");
+				return genErrorMsg();
+			}
 
 			if (isBreached(state)) break;
 			try {
 				const iter = gen.next(state);
-				if (iter.done)
+				if (iter.done) {
+					stop("lock returned");
 					return genErrorMsg() + (iter.value ? `\n\n${iter.value}` : "");
+				}
 
 				Object.assign(solve, iter.value, args.p);
 				state = exec(solve);
 			} catch (e) {
+				stop("lock throwed");
 				return `${genErrorMsg()}\n\n${e instanceof Error ? e.message : e}`;
 			}
 		}
+
+        gen.return(state);
+		stop(`\`2solved ${lock}\``);
 	}
 
-	return state;
+	return `\`2LOCK_UNLOCKED\`\n\n${getLog().join("\n")}`;
 }
