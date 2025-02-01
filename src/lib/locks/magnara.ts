@@ -41,8 +41,8 @@ export const magnara: LockSolver = function* (context, log) {
 			if (!found) {
 				log("no word found");
 			} else {
-				log(`found word ${word}`);
-				$db.us({ _id: `magnara_${sorted}` }, { $set: { found } });
+				log(`found word ${found}`);
+				$db.us({ _id: `magnara_${sorted}` }, { $set: { word: found } });
 			}
 		}
 	}
