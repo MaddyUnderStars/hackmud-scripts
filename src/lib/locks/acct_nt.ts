@@ -1,152 +1,166 @@
 import { game_ts_to_date } from "../timestamp";
 import type { LockSolver } from "./type";
 
-export const acct_nt: LockSolver = function* (context) {
-    const input = yield { acct_nt: 0 }; // try 0 just in case lol
+const around = (a: Date, b: Date) =>
+	a.valueOf() > b.valueOf() - 60 * 1000 &&
+	a.valueOf() < b.valueOf() + 60 * 1000;
 
-    const transactions = $hs.accts.transactions({ count: 50 });
+const getIndexes = (startDate: Date, endDate: Date, list: Transation[]) => {
+	const potentionalStartIndexes: number[] = [];
+	const potentionalEndIndexes: number[] = [];
+	for (let i = 0; i < list.length; i++) {
+		const x = list[i];
+		if (around(x.time, startDate)) {
+			potentionalStartIndexes.push(i);
+		}
 
-    const around = (a: Date, b: Date) =>
-        a.valueOf() > b.valueOf() - 240 * 1000 &&
-        a.valueOf() < b.valueOf() + 240 * 1000;
+		if (around(x.time, endDate)) {
+			potentionalEndIndexes.push(i);
+		}
+	}
 
-    const getIndexes = (
-        startDate: Date,
-        endDate: Date,
-        list: typeof transactions,
-    ) => {
-        const potentionalStartIndexes: number[] = [];
-        const potentionalEndIndexes: number[] = [];
-        for (let i = 0; i < list.length; i++) {
-            const x = list[i];
-            if (around(x.time, startDate)) {
-                potentionalStartIndexes.push(i);
-            }
+	return [potentionalStartIndexes, potentionalEndIndexes];
+};
 
-            if (around(x.time, endDate)) {
-                potentionalEndIndexes.push(i);
-            }
-        }
+export const acct_nt: LockSolver = function* (context, log) {
+	const input = yield { acct_nt: 0 }; // try 0 just in case lol
 
-        return [potentionalStartIndexes, potentionalEndIndexes];
-    };
+	const transactions: Transation[] = $hs.accts.transactions({ count: 50 });
 
-    if (input.includes("net")) {
-        const [_, end, start] = input.match(/between (.+) and (.+)$/);
-        const startDate = game_ts_to_date(start);
-        const endDate = game_ts_to_date(end);
+	if (input.includes("net")) {
+		log("mode net");
 
-        const [potentionalStartIndexes, potentionalEndIndexes] = getIndexes(
-            startDate,
-            endDate,
-            transactions,
-        );
+		const [_, end, start] = input.match(/between (.+) and (.+)$/);
+		const startDate = game_ts_to_date(start);
+		const endDate = game_ts_to_date(end);
 
-        const sumTransactions = (list: typeof transactions) =>
-            list
-                .map((x) => (x.recipient === context.caller ? x.amount : -x.amount))
-                .reduce((prev, curr) => prev + curr, 0);
+		const [potentionalStartIndexes, potentionalEndIndexes] = getIndexes(
+			startDate,
+			endDate,
+			transactions,
+		);
 
-        const attempts = new Set<number>();
+		log(`start = ${potentionalStartIndexes.join(", ")}`);
+		log(`end = ${potentionalEndIndexes.join(", ")}`);
 
-        for (const start of potentionalStartIndexes) {
-            for (const end of potentionalEndIndexes) {
-                const sum = sumTransactions(transactions.slice(start, end));
-                if (attempts.has(sum)) continue;
-                attempts.add(sum);
-                yield { acct_nt: sum };
-            }
-        }
-    } else if (input.includes("total")) {
-        const [_, type, memos, end, start] = input.match(
-            /(earned|spent) on transactions (with|without) memos between (.+) and (.+)$/,
-        );
+		const sumTransactions = (list: Transation[]) =>
+			list
+				.map((x) => (x.recipient === context.caller ? x.amount : -x.amount))
+				.reduce((prev, curr) => prev + curr, 0);
 
-        const startDate = game_ts_to_date(start);
-        const endDate = game_ts_to_date(end);
+		const attempts = new Set<number>();
 
-        const list = transactions.filter((x) =>
-            memos === "with" ? !!x.memo : !x.memo,
-        );
+		for (const start of potentionalStartIndexes) {
+			for (const end of potentionalEndIndexes) {
+				const slice = transactions.slice(start, end);
+				const sum = sumTransactions(slice);
+				if (attempts.has(sum)) continue;
+				attempts.add(sum);
+				yield { acct_nt: sum };
+			}
+		}
+	} else if (input.includes("total")) {
+		log("mode total");
 
-        const [potentionalStartIndexes, potentionalEndIndexes] = getIndexes(
-            startDate,
-            endDate,
-            list,
-        );
+		const [_, type, memos, end, start] = input.match(
+			/(earned|spent) on transactions (with|without) memos between (.+) and (.+)$/,
+		);
 
-        const sumTransactions = (list: typeof transactions) =>
-            list
-                .filter((x) =>
-                    type === "spent"
-                        ? x.sender === context.caller
-                        : x.recipient === context.caller,
-                )
-                .map((x) => (x.recipient === context.caller ? x.amount : -x.amount))
-                .reduce((prev, curr) => prev + curr, 0);
+		const startDate = game_ts_to_date(start);
+		const endDate = game_ts_to_date(end);
 
-        // just brute it for now
-        const l = new Set();
+		const list = transactions.filter((x) =>
+			memos === "with" ? !!x.memo : !x.memo,
+		);
 
-        for (const start of potentionalStartIndexes) {
-            for (const end of potentionalEndIndexes) {
-                l.add(Math.abs(sumTransactions(list.slice(start, end))));
-            }
-        }
+		const [potentionalStartIndexes, potentionalEndIndexes] = getIndexes(
+			startDate,
+			endDate,
+			list,
+		);
 
-        // for (let i = 0; i < list.length; i++) {
-        // 	for (let x = 0; x < list.length; x++) {
-        // 		l.add(Math.abs(sumTransactions(list.slice(i, x))));
-        // 	}
-        // }
+		const sumTransactions = (list: Transation[]) =>
+			list
+				// .filter((x) =>
+				// 	type === "spent"
+				// 		? x.recipient === context.caller
+				// 		: x.sender === context.caller,
+				// )
+				.map((x) => (x.recipient === context.caller ? x.amount : -x.amount))
+				.reduce((prev, curr) => prev + curr, 0);
 
-        for (const x of l) {
-            if (_END - Date.now() < 500) {
-                return { ok: false, x };
-            }
+		log(`start indexes - ${potentionalStartIndexes.join(", ")}`);
+		log(`end indexes - ${potentionalEndIndexes.join(", ")}`);
 
-            yield {
-                acct_nt: x,
-            };
-        }
-    } else if (input.includes("large")) {
-        const [_, type, timestamp] = input.match(
-            /large (deposit|withdrawal) near (.+)$/,
-        );
+		// just brute it for now
+		const l = new Set();
 
-        const date = game_ts_to_date(timestamp);
+		for (const start of potentionalStartIndexes) {
+			for (const end of potentionalEndIndexes) {
+				l.add(Math.abs(sumTransactions(list.slice(start, end))));
+			}
+		}
 
-        const list = transactions.filter((x) =>
-            type === "withdrawal"
-                ? x.recipient === context.caller
-                : x.sender === context.caller,
-        );
+		log(`have ${l.size} permutations`);
 
-        const potential: number[] = [];
-        for (let i = 0; i < list.length; i++) {
-            if (around(list[i].time, date)) potential.push(i);
-        }
+		for (const x of l) {
+			yield {
+				acct_nt: x,
+			};
+		}
+	} else if (input.includes("large")) {
+		log("mode large");
 
-        // try all the ones in the range first
-        for (const i of potential) {
-            yield { acct_nt: list[i].amount };
-        }
+		const [_, type, timestamp] = input.match(
+			/large (deposit|withdrawal) near (.+)$/,
+		);
 
-        const attempts = new Set<number>();
+		const date = game_ts_to_date(timestamp);
 
-        // then try search
-        const pick = potential[0];
-        attempts.add(list[pick].amount);
-        yield { acct_nt: list[pick].amount };
-        for (let i = 0; i < list.length; i++) {
-            if (list[pick + i] && !attempts.has(list[pick + i].amount)) {
-                attempts.add(list[pick + i].amount);
-                yield { acct_nt: list[pick + i].amount };
-            }
-            if (list[pick - i] && !attempts.has(list[pick - i].amount)) {
-                attempts.add(list[pick - i].amount);
-                yield { acct_nt: list[pick - i].amount };
-            }
-        }
-    }
+		const list = transactions.filter((x) =>
+			type === "withdrawal"
+				? x.sender === context.caller
+				: x.recipient === context.caller,
+		);
+
+		const potential: number[] = [];
+		for (let i = 0; i < list.length; i++) {
+			if (around(list[i].time, date)) potential.push(i);
+		}
+
+		log(`potentional: ${potential.join(", ")}`);
+
+		// try all the ones in the range first
+		for (const i of potential) {
+			yield { acct_nt: list[i].amount };
+		}
+
+		log("attempting search");
+
+		const attempts = new Set<number>(potential);
+
+		// then try search
+		const pick = potential[0];
+		attempts.add(list[pick].amount);
+		yield { acct_nt: list[pick].amount };
+		for (let i = 0; i < list.length; i++) {
+			if (list[pick + i] && !attempts.has(pick + i)) {
+				attempts.add(pick + i);
+				yield { acct_nt: list[pick + i].amount };
+			}
+			if (list[pick - i] && !attempts.has(pick - i)) {
+				attempts.add(pick - i);
+				yield { acct_nt: list[pick - i].amount };
+			}
+		}
+	}
+};
+
+type Transation = {
+	time: Date;
+	amount: number;
+	sender: string;
+	recipient: string;
+	script: string | null;
+	memo?: string;
 };
