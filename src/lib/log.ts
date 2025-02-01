@@ -1,13 +1,16 @@
 const LOG: unknown[] = [];
 
 export const createLogger = (name: string) => {
-	const time = () => `[${String(Date.now() - _START).padStart(4, "0")}ms]`;
+	const time = () => {
+		const t = Date.now() - _START;
+		return `[${t > 4500 ? "`D" : ""}${String(t).padStart(4, "0")}${t > 4500 ? "`" : ""}ms]`;
+	};
 
 	const internalLog: unknown[] = [`${time()} ${name}`];
 	return {
 		log: (args: string) =>
 			internalLog.push(
-                // extra padding for time
+				// extra padding for time
 				`${time()} - ${args.split("\n").join("\n        - - ")}`,
 			),
 		stop: (msg?: string) =>
