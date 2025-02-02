@@ -21,7 +21,7 @@ export default (context: Context, args: unknown) => {
 
 		const keys = $hs.sys.upgrades_of_owner({
 			//@ts-ignore
-			filter: { k3y: { $in: requested } },
+			filter: { k3y: { $in: requested }, loaded: false },
 			full: true,
 		});
 
