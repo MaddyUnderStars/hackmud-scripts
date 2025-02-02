@@ -23,8 +23,11 @@ export default (context: Context, args?: unknown) => {
 		})
 		.filter((x) => !!x);
 
-	if (isRecord(args) && "buy" in args && args.buy) {
+	if (isRecord(args) && "buy" in args && typeof args.buy === "string") {
+		const buyLimit = $fs.scripts.lib().to_gc_num(args.buy) as number;
 		for (const key of market) {
+			if (key.cost > buyLimit) continue;
+
 			$ms.squizzy.xfer({ amount: key.cost });
 			const ret = $ms.market.buy({ i: key.i, confirm: true, count: 1 });
 
