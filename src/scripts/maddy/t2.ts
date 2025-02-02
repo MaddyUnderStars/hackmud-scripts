@@ -12,6 +12,7 @@ import { ez_35 } from "/lib/locks/ez_35";
 import { ez_40 } from "/lib/locks/ez_40";
 import { l0ckbox } from "/lib/locks/l0ckbox";
 import { l0cket } from "/lib/locks/l0cket";
+import { l0ckjaw } from "/lib/locks/l0ckjaw";
 import { magnara } from "/lib/locks/magnara";
 import { sn_w_glock } from "/lib/locks/sn_w_glock";
 import type { LockSolver } from "/lib/locks/type";
@@ -21,6 +22,7 @@ const handlers: Record<string, LockSolver> = {};
 
 handlers.l0cket = l0cket;
 handlers.l0ckbox = l0ckbox;
+handlers.l0ckjaw = l0ckjaw;
 handlers.acct_nt = acct_nt;
 handlers.sn_w_glock = sn_w_glock;
 handlers.magnara = magnara;
@@ -41,9 +43,8 @@ const getCurrentLock = (out: string) => {
 	const lastline = out.split("\n").slice(-1)[0];
 	const lock = lastline.split(" ").slice(-2)[0];
 
-	if (out.includes("appropriate k3y")) {
-		return "l0ckbox";
-	}
+	if (out.includes("appropriate k3y")) return "l0ckbox";
+	if (out.includes("l0ckjaw")) return "l0ckjaw";
 
 	if (
 		handlers[lock.substring(0, lock.length - 1).substring(2)] ||
@@ -74,14 +75,16 @@ export default function (context: Context, args?: unknown) {
 	const solve = args.p ? args.p : {};
 	let state = exec(solve);
 
-	const genErrorMsg = () =>
-		`\`zLOCK_ERROR\`\n${getCurrentLock(state)}\n${JSON.stringify(solve)}\n\n${state}\n\n-- LOG --\n${getLog().join("\n")}`;
+	if (state.includes("different")) return state;
+	if (state.includes("more than 4")) return state;
 
 	while (!isBreached(state)) {
 		const lock = getCurrentLock(state);
 
 		const handler = handlers[lock];
-		if (!handler) return genErrorMsg();
+		if (!handler) {
+			return `no handler for ${lock}\n\n${getLog().join("\n")}\n\n${state}`;
+		}
 
 		const { log, stop } = createLogger(`\`4${lock}\``);
 		const gen = handler(context, log);
@@ -89,26 +92,26 @@ export default function (context: Context, args?: unknown) {
 		while (getCurrentLock(state) === lock) {
 			if (_END - Date.now() < 500) {
 				stop("timeout");
-				return genErrorMsg();
+				return getLog().join("\n");
 			}
 
 			if (isBreached(state)) break;
 			try {
 				const iter = gen.next(state);
 				if (iter.done) {
-					stop("lock returned");
-					return genErrorMsg() + (iter.value ? `\n\n${iter.value}` : "");
+					stop(`returned ${JSON.stringify(iter.value)}`);
+					return `${getLog().join("\n")}\n\n${state}`;
 				}
 
 				Object.assign(solve, iter.value, args.p);
 				state = exec(solve);
 			} catch (e) {
-				stop("lock throwed");
-				return `${genErrorMsg()}\n\n${e instanceof Error ? e.message : e}`;
+				stop(`threw ${e instanceof Error ? e.message : JSON.stringify(e)}`);
+				return getLog().join("\n");
 			}
 		}
 
-        gen.return(state);
+		gen.return(state);
 		stop(`\`2solved ${lock}\``);
 	}
 
