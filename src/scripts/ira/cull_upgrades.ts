@@ -28,17 +28,29 @@ export default function (context: Context, args?: unknown) {
 
 		const market = $ls.market.browse(s);
 
-		if (!Array.isArray(market) || !market.length) continue;
+		const index = (
+			$hs.sys.upgrades({ full: true }) as {
+				sn: string;
+				i: number;
+				rarity: number;
+			}[]
+		).find((x) => x.sn === item.sn);
+
+		if (!index) continue;
+
+		if (!Array.isArray(market) || !market.length) {
+			if (index.rarity === 1)
+				$ls.sys.cull({
+					i: index.i,
+					confirm: true,
+				});
+			continue;
+		}
 
 		// const sellCost =
 		// market.reduce((prev, curr) => prev + curr.cost, 0) / (market.length - 1);
 
 		// get the new index of this up
-		const index = (
-			$hs.sys.upgrades({ full: true }) as { sn: string; i: number }[]
-		).find((x) => x.sn === item.sn);
-
-		if (!index) continue;
 
 		const sellCost = market[0].cost;
 
