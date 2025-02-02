@@ -3,7 +3,7 @@ const LOG: unknown[] = [];
 export const createLogger = (name: string) => {
 	const time = () => {
 		const t = Date.now() - _START;
-		return `[${t > 4500 ? "`D" : ""}${String(t).padStart(4, "0")}${t > 4500 ? "`" : ""}ms]`;
+		return `[${t > 4000 ? "`D" : ""}${String(t).padStart(4, "0")}${t > 4000 ? "`" : ""}ms]`;
 	};
 
 	const internalLog: unknown[] = [`${time()} ${name}`];
@@ -11,7 +11,7 @@ export const createLogger = (name: string) => {
 		log: (args: string) =>
 			internalLog.push(
 				// extra padding for time
-				`${time()} - ${args.split("\n").join("\n        - - ")}`,
+				`${time()} - ${args.split("\n").join("\n         -> ")}`,
 			),
 		stop: (msg?: string) =>
 			LOG.push(...internalLog, msg ? `${time()} ${msg}` : ""),
