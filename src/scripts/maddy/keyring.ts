@@ -1,7 +1,7 @@
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 
-interface Key {
+export interface Key {
 	k3y: string;
 	user: string;
 	sn: string;
@@ -63,7 +63,7 @@ export default (context: Context, args: unknown) => {
 	if (!args || !isRecord(args)) {
 		const keys = getAllKeys(SCRIPT_OWNER);
 
-        if (context.calling_script) return keys;
+		if (context.calling_script) return keys;
 
 		return table(
 			[
@@ -135,7 +135,7 @@ export default (context: Context, args: unknown) => {
 
 		const allKeys = getAllKeys(SCRIPT_OWNER);
 
-		const found = allKeys.filter((x) => requested.includes(x.k3y));
+		const found = allKeys.filter((x) => requested.includes(x.k3y) && !x.loaded);
 
 		const groupedByUser: Record<string, string[]> = {};
 		for (const key of found)
