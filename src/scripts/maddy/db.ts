@@ -28,4 +28,9 @@ export default function (context: Context, args?: unknown) {
 		//@ts-ignore
 		return $db.i(args.a);
 	}
+
+    if (args.t === "u") {
+        //@ts-ignore
+        return $db.u(args.a, args.u);
+    }
 }
