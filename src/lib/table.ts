@@ -15,16 +15,14 @@ export const table = (cells: string[][], columns: number, padding = 5) => {
 		// then then rows
 		let size = 0;
 		for (let rowIndex = 0; rowIndex < cells.length; rowIndex++) {
-			size =
-				cells[rowIndex][columnIndex]?.length > size
-					? cells[rowIndex][columnIndex].length
-					: size;
+			const cell = cells[rowIndex][columnIndex];
+			size = cell?.length > size ? cell.length : size;
 		}
 
-		columnSizes.push(size);
+		columnSizes.push(size + padding);
 	}
 
-    // TODO: if columnSizes totals > columns, iteratively reduce until <= columns
+	// TODO: if columnSizes totals > columns, iteratively reduce until <= columns
 
 	let out = "";
 	for (let rowIndex = 0; rowIndex < cells.length; rowIndex++) {
@@ -36,10 +34,12 @@ export const table = (cells: string[][], columns: number, padding = 5) => {
 
 			const columnSize = columnSizes[columnIndex];
 
-			out += (cell ?? "") + " ".repeat(columnSize - colourless.length + padding);
+			out +=
+				(cell.split("\n")[0] ?? "") +
+				" ".repeat(columnSize - colourless.length);
 		}
 
-        out += "\n";
+		out += "\n";
 	}
 
 	return out;
