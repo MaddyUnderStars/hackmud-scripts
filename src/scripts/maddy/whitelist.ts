@@ -1,18 +1,25 @@
-export default (context: Context) => {
-    const allowed = [
-        "maddy",
-        "ira",
-        "katsu",
-        "verdance",
-        "squizzy",
-        "uzuri",
-        "oscilio"
-    ]
+import { isRecord } from "/lib/isRecord";
 
-    if (!allowed.includes(context.caller)) {
-        $ms.squizzy.xfer();
-        throw new Error("unauthorized");
-    }
+export default (context: Context, args?: unknown) => {
+	const allowed = [
+		"maddy",
+		"ira",
+		"katsu",
+		"verdance",
+		"squizzy",
+		"uzuri",
+		"oscilio",
+		"arakni",
+        "enigma",
+	];
 
-    return { ok: true }
-}
+	if (!allowed.includes(context.caller)) {
+		$ms.maddy.xfer();
+		throw new Error("unauthorized");
+	}
+    
+    if (isRecord(args) && typeof args.user === "string")
+        return { ok: allowed.includes(args.user) };
+
+	return { ok: true };
+};
