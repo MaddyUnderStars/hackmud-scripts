@@ -3,7 +3,7 @@
 import { isRecord } from "/lib/isRecord";
 import { isScriptor } from "/lib/isScriptor";
 
-export default function (context: Context, args?: unknown) {
+export default function (context: Context, args?: unknown): string | ScriptFailure {
 	if (!isRecord(args) || !isScriptor(args.s))
 		return {
 			ok: false,
