@@ -49,10 +49,9 @@ const getCurrentLock = (out: string) => {
 	if (
 		handlers[lock.substring(0, lock.length - 1).substring(2)] ||
 		!lastlock.length
-	) {
+	)
 		lastlock = removeColour(lock);
-		return lastlock;
-	}
+        
 	return lastlock;
 };
 
@@ -90,7 +89,7 @@ export default function (context: Context, args?: unknown) {
 		const gen = handler(context, log);
 
 		while (getCurrentLock(state) === lock) {
-			if (_END - Date.now() < 500) {
+			if (_END - Date.now() < 1200) {
 				stop("timeout");
 				return getLog().join("\n");
 			}
