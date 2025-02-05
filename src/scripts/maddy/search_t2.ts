@@ -1,8 +1,9 @@
+import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { isScriptor } from "/lib/isScriptor";
 
 const exec = (scriptor: Scriptor, args?: unknown): string => {
-	return $fs.maddy.read({ s: scriptor, a: args });
+	return throwFailure($fs.maddy.read({ s: scriptor, a: args }));
 };
 
 export default function (context: Context, args?: unknown) {
