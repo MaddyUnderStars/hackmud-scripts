@@ -8,7 +8,7 @@ interface Key {
 	loaded: boolean;
 }
 
-export default (context: Context, args: unknown) => {
+export default (context: Context, args?: unknown) => {
 	$ms.maddy.whitelist();
 
 	if (

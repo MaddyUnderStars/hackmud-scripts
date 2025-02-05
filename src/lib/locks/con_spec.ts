@@ -1,51 +1,64 @@
 import type { LockSolver } from "./type";
 
-export const con_spec: LockSolver = function* () {
-    const input = yield { CON_SPEC: "" };
+export const con_spec: LockSolver = function* (context, log) {
+	const input = yield { CON_SPEC: "" };
 
-    if (input.includes("scriptor")) {
-        yield {
-            CON_SPEC: {
-                call: (args: Record<string, unknown>) => {
-                    const s = args.s as string;
-                    const d = args.d as number;
+	if (input.includes("scriptor")) {
+		yield {
+			CON_SPEC: {
+				call: (args: Record<string, unknown>) => {
+					const s = args.s as string;
+					const d = args.d as number;
 
-                    return (
-                        s
-                            .split("")
-                            .filter((x) =>
-                                Number.isNaN(x) ? false : Number.parseInt(x) === d,
-                            )?.length ?? 0
-                    );
-                },
-            },
-        };
-        return;
-    }
+					return (
+						s
+							.split("")
+							.filter((x) =>
+								Number.isNaN(x) ? false : Number.parseInt(x) === d,
+							)?.length ?? 0
+					);
+				},
+			},
+		};
+		return;
+	}
 
-    // do the sequence
-    const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
-    const sequence = input.toLowerCase().split("\n")[0].split("") as string[];
+	// do the sequence
+	const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+	const sequence = input.toLowerCase().split("\n")[0].split("") as string[];
 
-    const indexes = sequence.map((x) => alphabet.indexOf(x));
+	log(`sequence ${sequence.join("").toUpperCase()}`);
 
-    const differences = indexes.slice(1).map((v, i) => v - indexes[i]);
+	const indexes = sequence.map((x) => alphabet.indexOf(x));
 
-    let ret = "";
-    let curr = indexes[indexes.length - 1];
-    const attempts = [];
-    for (let i = 3; i > 0; i--) {
-        const attempt =
-            differences[(differences.length - i - 1) % differences.length];
-        curr += attempt;
-        attempts.push(attempt);
+	const differences = indexes.slice(1).map((v, i) => v - indexes[i]);
 
-        if (curr < 0) curr += alphabet.length;
+	let ret = "";
+	let curr = indexes[indexes.length - 1];
+	const attempts = [];
+	for (let i = 3; i > 0; i--) {
+		const attempt =
+			differences[(differences.length - i - 1) % differences.length];
+		curr += attempt;
+		attempts.push(attempt);
 
-        ret += alphabet[curr % alphabet.length];
-    }
+		if (curr < 0) curr += alphabet.length;
 
-    yield { CON_SPEC: ret.toUpperCase() };
+		ret += alphabet[curr % alphabet.length];
+	}
 
-    return { indexes, differences, attempts };
+	try {
+		yield { CON_SPEC: ret.toUpperCase() };
+	} finally {
+		log(`solution ${ret.toUpperCase()}`);
+
+		$db.us(
+			{
+				_id: `conspec_${sequence.join("").toUpperCase()}_${ret.toUpperCase()}`,
+			},
+			{},
+		);
+	}
+
+	return { indexes, differences, attempts };
 };

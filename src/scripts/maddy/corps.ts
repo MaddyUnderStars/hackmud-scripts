@@ -1,5 +1,6 @@
 // @autocomplete tier: 1
 
+import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 
 const CORP_USERNAMES = [
@@ -65,14 +66,16 @@ export default (context: Context, args?: unknown) => {
 	const seclevels = tierToSec[args.tier];
 
 	const scripts: string[] = seclevels.flatMap((sec) =>
-		$ms.maddy.scripts({ level: sec, page: 0 }),
+		throwFailure($ms.maddy.scripts({ level: sec, page: 0 })),
 	);
 
-    const filtered = scripts.filter((x) => CORP_USERNAMES.some((y) => x.includes(y)));;
+	const filtered = scripts.filter((x) =>
+		CORP_USERNAMES.some((y) => x.includes(y)),
+	);
 
-    if (context.calling_script) return filtered;
+	if (context.calling_script) return filtered;
 
-    const lib = $fs.scripts.lib();
+	const lib = $fs.scripts.lib();
 
 	return lib.columnize(filtered);
 };

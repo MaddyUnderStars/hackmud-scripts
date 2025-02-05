@@ -1,3 +1,4 @@
+
 export default function (context: Context, args?: unknown) {
 	return $db.f({ s: "t1", k: "l0cket" }).array();
 

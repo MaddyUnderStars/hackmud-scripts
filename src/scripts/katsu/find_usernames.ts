@@ -1,20 +1,25 @@
-import { throwWhitelist } from "/lib/auth";
+import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 
 const read = (
 	scriptor: (...rest: unknown[]) => unknown,
 	args?: unknown,
 ): string => {
-	return $fs.maddy.read({
-		s: {
-			name: "test",
-			call: scriptor,
-		},
-		a: args,
-	});
+	return throwFailure(
+		$fs.maddy.read({
+			s: {
+				name: "test",
+				call: scriptor,
+			},
+			a: args,
+		}),
+	);
 };
 
-export default function (context: Context, args?: unknown) {
+export default function (
+	context: Context,
+	args?: unknown,
+): string[] | undefined {
 	const t1_corps = [
 		$fs.amal_robo.public,
 		$fs.aon.public,
@@ -57,19 +62,19 @@ export default function (context: Context, args?: unknown) {
 		$fs.world_pop.public,
 	];
 
-	throwWhitelist(context.caller);
+	$fs.maddy.whitelist();
 
 	if (args) {
 		if (isRecord(args) && args.projects)
 			return $db
 				.f({ s: "corp_projects" })
 				.array()
-				.map((x) => x.name);
+				.map((x) => x.name) as string[];
 
 		return $db
 			.f({ s: "corp_usernames" })
 			.array()
-			.map((x) => x.name);
+			.map((x) => x.name) as string[];
 	}
 
 	for (const corp of t1_corps) {

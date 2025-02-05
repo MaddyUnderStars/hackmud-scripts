@@ -39,11 +39,12 @@ export default function (context: Context, args?: unknown) {
 		if (!index) continue;
 
 		if (!Array.isArray(market) || !market.length) {
-			if (index.rarity === 1)
+			if (index.rarity < 1 && isRecord(args) && "dry" in args && !args.dry)
 				$ls.sys.cull({
 					i: index.i,
 					confirm: true,
 				});
+
 			continue;
 		}
 
@@ -53,10 +54,11 @@ export default function (context: Context, args?: unknown) {
 		// get the new index of this up
 
 		const sellCost = market[0].cost;
+        const returnValue = sellCost * 0.9;
 
 		const listFee = Math.max(sellCost * 0.05, 1_000);
 
-		if (listFee > sellCost && isRecord(args) && "dry" in args && !args.dry) {
+		if (listFee >= returnValue && isRecord(args) && "dry" in args && !args.dry) {
 			$ls.sys.cull({
 				i: index.i,
 				confirm: true,
@@ -68,7 +70,7 @@ export default function (context: Context, args?: unknown) {
 
 		if (isRecord(args) && "dry" in args && !args.dry) {
 			const bal = $hs.accts.balance();
-			if (bal < listFee) $ms.squizzy.xfer({ amount: Math.ceil(listFee) });
+			if (bal < listFee) $ms.maddy.xfer({ amount: Math.ceil(listFee) });
 
 			const ret = $ls.market.sell({
 				i: index.i,
