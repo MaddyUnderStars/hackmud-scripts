@@ -28,7 +28,7 @@ export default (context: Context, args?: unknown) => {
 		for (const key of market) {
 			if (key.cost > buyLimit) continue;
 
-			$ms.squizzy.xfer({ amount: key.cost });
+			$ms.maddy.xfer({ amount: key.cost });
 			const ret = $ms.market.buy({ i: key.i, confirm: true, count: 1 });
 
 			if ("ok" in ret && !ret.ok) return ret;
