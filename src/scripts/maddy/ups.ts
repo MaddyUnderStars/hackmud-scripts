@@ -9,6 +9,7 @@ export default function (context: Context, args?: unknown) {
         [() => $ms.ira.ups({ full: true }), "ira"],
         [() => $ms.squizzy.ups({ full: true }), "squizzy"],
         [() => $ms.uzuri.ups({ full: true }), "uzuri"],
+        [() => $ms.enigma.ups({ full: true }), "enigma"],
     ];
 
     const upgrades: {
@@ -25,6 +26,10 @@ export default function (context: Context, args?: unknown) {
         const list = source[0]();
 
         for (const u of list) {
+            if (_END - Date.now() < 500) break;
+
+            if (typeof u.name === "string" && u.name?.includes("k3y")) continue;
+
             const s = JSON.parse(JSON.stringify(u));
             for (const key of ["i", "sn", "loaded", "description"]) delete s[key];
 
