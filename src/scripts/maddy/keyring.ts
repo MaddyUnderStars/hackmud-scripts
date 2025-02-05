@@ -1,3 +1,4 @@
+import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 
@@ -10,11 +11,16 @@ export interface Key {
 	tier: number;
 }
 
+const bankUsers = ["squizzy", "katsu", "oscilio", "arakni", "enigma"];
+
 const keyrings = {
 	ira: $ls.ira.keyring,
 	squizzy: $ls.squizzy.keyring,
 	katsu: $ls.katsu.keyring,
 	uzuri: $ls.uzuri.keyring,
+	oscilio: $ls.oscilio.keyring,
+	arakni: $ls.arakni.keyring,
+	enigma: $ls.enigma.keyring,
 	// verdance: $s.verdance.keyring,
 };
 
@@ -65,19 +71,31 @@ export default (context: Context, args: unknown) => {
 
 		if (context.calling_script) return keys;
 
+		const filter = (a: Key, b: Key) =>
+			a.k3y === b.k3y && a.rarity === b.rarity && a.tier === b.tier;
+
 		return table(
 			[
-				["k3y", "user", "tier", "loaded"],
+				["k3y", "tier", "count"],
 				[],
-				...keys.map((x) => {
-					if (x.tier === -1) return ["failed", x.user, "", ""];
-					return [
-						`\`${x.rarity}${x.k3y}\``,
-						x.user,
-						`${x.tier}`,
-						`${x.loaded}`,
-					];
-				}),
+				...keys
+					.reduce(
+						(prev, curr, _, a) => {
+							if (prev.find((x) => filter(x, curr))) return prev;
+
+							return prev.concat(
+								Object.assign({}, curr, {
+									count: a.filter((x) => filter(x, curr)).length,
+								}),
+							);
+						},
+						[] as Array<Key & { count: number }>,
+					)
+					.sort((a, b) => a.count - b.count)
+					.map((x) => {
+						if (x.tier === -1) return ["failed", x.user, "", ""];
+						return [`\`${x.rarity}${x.k3y}\``, `${x.tier}`, `${x.count}`];
+					}),
 			],
 			context.cols,
 		);
@@ -105,7 +123,7 @@ export default (context: Context, args: unknown) => {
 					msg: `cheapest ${lib.to_gc_str(cheapest.cost)} > ${lib.to_gc_str(buy)}`,
 				};
 
-			const xfer = $ms.squizzy.xfer({ amount: cheapest.cost });
+			const xfer = $ms.maddy.xfer({ amount: cheapest.cost });
 			if (isRecord(xfer) && "ok" in xfer && !xfer.ok) return xfer;
 
 			return $ms.market.buy({ i: cheapest.i, count: 1, confirm: true });
@@ -118,14 +136,33 @@ export default (context: Context, args: unknown) => {
 	}
 
 	if ("unload" in args) {
-		const keys = $hs.sys.upgrades({ filter: { k3y: null } });
-		if (!Array.isArray(keys)) return keys;
+		const keys = throwFailure(
+			$ms.sys.upgrades({ full: true, filter: { k3y: null } }),
+		);
+		const allKeys = getAllKeys(context.caller);
+
+		// send keys to botnet user with lowest number of keys
 
 		$ms.sys.manage({ unload: keys.map((x) => x.i) });
 
-		$ls.sys.xfer_upgrade_to({ i: keys.map((x) => x.i), to: "squizzy" });
+		const counts: Record<string, number> = {};
+		for (const k of allKeys)
+			counts[k.user] = counts[k.user] ? counts[k.user] + 1 : 1;
 
-		if (Object.keys(args).length === 1) return { ok: true };
+		const least = Object.entries(counts)
+			.filter((x) => bankUsers.includes(x[0]))
+			.sort((a, b) => a[1] - b[1])[0];
+
+		const ret = $ls.sys.xfer_upgrade_to({
+			i: keys.map((x) => x.i),
+			to: least[0],
+		});
+
+		if (Object.keys(args).length === 1)
+			return {
+				ok: ret.ok,
+				msg: `${"msg" in ret ? ret.msg : ""}\n${least[0]}`,
+			};
 	}
 
 	if (typeof args.load === "string" || Array.isArray(args.load)) {
@@ -135,13 +172,22 @@ export default (context: Context, args: unknown) => {
 
 		const allKeys = getAllKeys(SCRIPT_OWNER);
 
-		const found = allKeys.filter((x) => requested.includes(x.k3y) && !x.loaded);
+		const found = allKeys.filter(
+			(x, i, a) =>
+				(requested.includes(x.k3y) ||
+					requested.find((y) => x.k3y.indexOf(y) === 0)) &&
+				!x.loaded,
+		);
 
 		const groupedByUser: Record<string, string[]> = {};
-		for (const key of found)
+		for (const key of found) {
+			if (Object.values(groupedByUser).find((x) => x.includes(key.k3y)))
+				continue;
+
 			groupedByUser[key.user] = groupedByUser[key.user]
 				? [...groupedByUser[key.user], key.k3y]
 				: [key.k3y];
+		}
 
 		for (const user in groupedByUser) {
 			if (user === SCRIPT_OWNER) continue;
@@ -156,10 +202,12 @@ export default (context: Context, args: unknown) => {
 			if (!Array.isArray(localKey) || !localKey.length)
 				return { ok: false, msg: "failed to transfer keys" };
 
-			$ls.sys.manage({ load: localKey.map((x) => x.i) });
+			throwFailure($ls.sys.manage({ load: localKey.map((x) => x.i) }));
 		}
 
-		return { ok: true };
+		return {
+			ok: Object.values(groupedByUser).flat().length === requested.length,
+		};
 	}
 
 	return (
