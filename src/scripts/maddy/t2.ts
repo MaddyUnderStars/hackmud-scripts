@@ -64,11 +64,17 @@ export default function (context: Context, args?: unknown) {
 	const exec = (p?: unknown) => {
 		const ret = (args.s as Scriptor).call(p);
 
-		if (typeof ret === "string") return ret;
-		if (Array.isArray(ret)) return ret.join("\n");
-		if (isRecord(ret) && "msg" in ret && typeof ret.msg === "string")
-			return ret.msg;
-		return JSON.stringify(ret);
+        let e: string;
+
+		if (typeof ret === "string") e = ret;
+		else if (Array.isArray(ret)) e = ret.join("\n");
+		else if (isRecord(ret) && "msg" in ret && typeof ret.msg === "string")
+			e = ret.msg;
+		else e = JSON.stringify(ret);
+
+        if (e.includes("anon_self_destruct")) throw new Error("anon_self_destruct");
+
+        return e;
 	};
 
 	const solve = args.p ? args.p : {};
@@ -85,7 +91,7 @@ export default function (context: Context, args?: unknown) {
 			return `no handler for ${lock}\n\n${getLog().join("\n")}\n\n${state}`;
 		}
 
-		const { log, stop } = createLogger(`\`4${lock}\``);
+		const { log, stop } = createLogger(`\`N${lock}\``);
 		const gen = handler(context, log);
 
 		while (getCurrentLock(state) === lock) {
