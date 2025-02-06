@@ -23,6 +23,10 @@ export const table = (cells: string[][], columns: number, padding = 5) => {
 	}
 
 	// TODO: if columnSizes totals > columns, iteratively reduce until <= columns
+	while (columnSizes.reduce((prev, curr) => prev + curr, 0) > columns) {
+		const i = columnSizes.indexOf(Math.max(...columnSizes));
+		columnSizes[i]--;
+	}
 
 	let out = "";
 	for (let rowIndex = 0; rowIndex < cells.length; rowIndex++) {
@@ -34,9 +38,11 @@ export const table = (cells: string[][], columns: number, padding = 5) => {
 
 			const columnSize = columnSizes[columnIndex];
 
-			out +=
-				(cell.split("\n")[0] ?? "") +
-				" ".repeat(columnSize - colourless.length);
+			const rendered =
+				(cell.split("\n")[0]?.slice(0, columnSize) ?? "") +
+				" ".repeat(Math.max(columnSize - colourless.length, 0));
+
+			out += rendered;
 		}
 
 		out += "\n";
