@@ -51,7 +51,7 @@ export default (context: Context, args: any) => {
 			"Args are passed to market.browse. First n listings are fetched, and rendered in a table\n" +
 			"If searching for the same upgrade*, also display special stats\n\n" +
 			'*same = name.replace(/_v./, "")\n\n' +
-			"`Nsort`: `Vstring | string[]` - sort *the page* by table headers (except n)\n" +
+			"`Nsort`: `Vstring | string[]` - sort *the page* by table headers\n" +
 			"`Npage`: `Vnumber` - default 0\n" +
 			"`Nn`: `Vnumber` - page size. default 50"
 		);
@@ -151,7 +151,6 @@ export default (context: Context, args: any) => {
 	return `${table(
 		[
 			[
-				"n",
 				"i",
 				"price",
 				"name",
@@ -162,7 +161,6 @@ export default (context: Context, args: any) => {
 			],
 			[],
 			...fetched.map((listing, index) => [
-				`${index + page_size * page}`,
 				`${listing.i}`,
 				lib.to_gc_str(listing.cost),
 				`\`${listing.upgrade.rarity}${listing.upgrade.name}\``,
@@ -174,11 +172,17 @@ export default (context: Context, args: any) => {
 				...includedStats.map((stat) => {
 					let ret = stat in listing.upgrade ? listing.upgrade[stat] : "";
 
-					if (["cost", "max_glock_amnt"].includes(stat) && typeof ret === "number")
+					if (
+						["cost", "max_glock_amnt"].includes(stat) &&
+						typeof ret === "number"
+					)
 						ret = lib.to_gc_str(ret);
 
-                    if (["cooldown", "expire_secs"].includes(stat) && typeof ret === "number")
-                        ret = readableMs(ret * 1000);
+					if (
+						["cooldown", "expire_secs"].includes(stat) &&
+						typeof ret === "number"
+					)
+						ret = readableMs(ret * 1000);
 
 					return `${ret}`;
 				}),
@@ -186,5 +190,5 @@ export default (context: Context, args: any) => {
 		],
 		context.cols,
 		3,
-	)}${more ? `\n\n...${more} more results` : ""}`;
+	)}${more ? `\n${Math.floor(market.length / page_size) >= page ? "" : `\nnext page: ${page + 1}`}\nlast page: ${Math.floor(market.length / page_size)}` : ""}`;
 };
