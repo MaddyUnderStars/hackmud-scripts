@@ -1,6 +1,7 @@
 import { isFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
+import { readableMs } from "/lib/time";
 
 type MarketListing = {
 	i: string;
@@ -173,8 +174,11 @@ export default (context: Context, args: any) => {
 				...includedStats.map((stat) => {
 					let ret = stat in listing.upgrade ? listing.upgrade[stat] : "";
 
-					if (stat === "cost" && typeof ret === "number")
+					if (["cost", "max_glock_amnt"].includes(stat) && typeof ret === "number")
 						ret = lib.to_gc_str(ret);
+
+                    if (["cooldown", "expire_secs"].includes(stat) && typeof ret === "number")
+                        ret = readableMs(ret * 1000);
 
 					return `${ret}`;
 				}),
