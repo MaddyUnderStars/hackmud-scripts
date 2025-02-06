@@ -1,7 +1,8 @@
 import { isFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
-import { readableMs } from "/lib/time";
+import { fromReadableTime, readableMs } from "/lib/time";
+import { walk } from "/lib/walk";
 
 type MarketListing = {
 	i: string;
@@ -48,13 +49,19 @@ export default (context: Context, args: any) => {
 	if (!args)
 		return (
 			"Market listings viewer.\n" +
-			"Args are passed to market.browse. First n listings are fetched, and rendered in a table\n" +
-			"If searching for the same upgrade*, also display special stats\n\n" +
-			'*same = name.replace(/_v./, "")\n\n' +
+			"Args are passed to market.browse (with some mangling*). First n listings are fetched, and rendered in a table\n" +
+			"If searching for the same upgrade**, also display special stats\n\n" +
+            "*you may use human readable values (same format as script output) instead of plain numbers in queries.\n" + 
+            "   you may also use k3y 3 letter shorthands\n" +
+            "   lastly, passing `Vnull` as a prop will act the same as in sys.upgrades\n" +
+			'**same = name.replace(/_v./, "")\n\n' +
 			"`Nsort`: `Vstring | string[]` - sort *the page* by table headers\n" +
 			"`Npage`: `Vnumber` - default 0\n" +
-			"`Nn`: `Vnumber` - page size. default 50"
+			"`Nn`: `Vnumber` - page size. default 50\n" +
+			"`Ndebug`: `Vboolean` - return arguments passed to market.browse"
 		);
+
+	const lib = $fs.scripts.lib();
 
 	const sort: string[] =
 		isRecord(args) &&
@@ -74,12 +81,46 @@ export default (context: Context, args: any) => {
 	const page_size =
 		isRecord(args) && "n" in args && typeof args.n === "number" ? args.n : 50;
 
+	const convertFromReadable = (key: string, value: unknown) => {
+		if (["cost", "max_glock_amnt"].includes(key) && typeof value === "string")
+			return lib.to_gc_num(value);
+
+		if (["cooldown", "expire_secs"].includes(key) && typeof value === "string")
+			return fromReadableTime(value) / 1000;
+
+		if (key === "k3y" && typeof value === "string" && value.length === 3)
+			return { $regex: value };
+
+		return value;
+	};
+
+	if (isRecord(args)) {
+		for (const [parentKey, parentValue] of Object.entries(args)) {
+			if (isRecord(parentValue)) {
+				walk(parentValue, (value, key) =>
+					convertFromReadable(parentKey, value),
+				);
+			} else {
+                if (parentValue === null) args[parentKey] = { $exists: true };
+				else args[parentKey] = convertFromReadable(parentKey, parentValue);
+			}
+		}
+	}
+
+	if (isRecord(args) && args.debug) {
+		// biome-ignore lint/performance/noDelete: <explanation>
+		delete args.debug;
+		return args;
+	}
+
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.sort;
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.page;
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.n;
+	// biome-ignore lint/performance/noDelete: <explanation>
+	delete args.debug;
 
 	const market = $fs.market.browse(args);
 
@@ -137,7 +178,7 @@ export default (context: Context, args: any) => {
 			return 0;
 		});
 
-	const lib = $fs.scripts.lib();
+	if (!fetched.length) return "no results";
 
 	const includedStats =
 		new Set(fetched.map((x) => x.upgrade.name.replace(/_v./, ""))).size === 1
@@ -148,7 +189,7 @@ export default (context: Context, args: any) => {
 
 	const more = market.length - fetched.length;
 
-	return `${table(
+	let ret = table(
 		[
 			[
 				"i",
@@ -190,5 +231,14 @@ export default (context: Context, args: any) => {
 		],
 		context.cols,
 		3,
-	)}${more ? `\n${Math.floor(market.length / page_size) >= page ? "" : `\nnext page: ${page + 1}`}\nlast page: ${Math.floor(market.length / page_size)}` : ""}`;
+	);
+
+	if (more) {
+		const lastPage = Math.floor(market.length / page_size);
+		if (lastPage >= page) ret += `\nnext page: ${page + 1}`;
+		ret += `\nlast page: ${Math.floor(market.length / page_size)}`;
+		ret += `\ntotal listings: ${market.length}`;
+	}
+
+	return ret;
 };
