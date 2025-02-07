@@ -1,5 +1,6 @@
 import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
+import { mongoFilter } from "/lib/mongoFilter";
 import { table } from "/lib/table";
 import { fromReadableTime, readableMs } from "/lib/time";
 import { walk } from "/lib/walk";
@@ -39,7 +40,7 @@ const UPGRADE_STATS = [
 	"cooldown",
 	"amount",
 	"acc_mod",
-	"cost",
+	"price",
 	"retries",
 	"k3y",
 ] as const;
@@ -60,35 +61,67 @@ const preferredSortDir = {
 	chars: -1,
 	slots: -1,
 	count: -1,
-    amount: -1,
-    acc_mod: -1,
+	amount: -1,
+	acc_mod: -1,
 } as Record<string, number>;
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export default (context: Context, args: any) => {
-	if (!args)
-		return (
-			"Market listings viewer.\n" +
-			"Args are passed to market.browse (with some mangling*). First n listings are fetched, and rendered in a table\n" +
-			"If searching for the same upgrade**, also display special stats\n\n" +
-			"*you may use human readable values (same format as script output) instead of plain numbers in queries.\n" +
-			"   you may also use k3y 3 letter shorthands\n" +
-			"   lastly, passing `Vnull` as a prop will act the same as in sys.upgrades\n" +
-			'**same = name.replace(/_v./, "")\n\n' +
-			"`Nsort`: `Vstring | string[]` - sort by table headers. sorting is limited to first 1000 listings \n" +
-			"`Npage`: `Vnumber` - default 0\n" +
-			"`Nn`: `Vnumber` - page size. default 50\n" +
-			"`Ndebug`: `Vboolean` - return arguments passed to market.browse"
+	if (!args) {
+		const args_table = table(
+			[
+				["arg", "value", "default", "desc"],
+				[],
+				["`Nn`", "`Vnumber`", "50", "page size"],
+				["`Npage`", "`Vnumber`", "0", "selected page"],
+				[],
+				[
+					"`Nsort`",
+					"`Vstring | string[]`",
+					"",
+					"sort by table headers. fetches max 1000 market items. if array order is priority",
+				],
+				["`Nsort_dir`", "`V1 | -1`", "1", "-1 inverts sort order"],
+				[],
+				[
+					"`Ndebug`",
+					"`Vboolean`",
+					"false",
+					"show args passed to market.browse, after mangling",
+				],
+			],
+			context.cols,
+			1,
 		);
+
+		return (
+			// biome-ignore lint/style/useTemplate: <explanation>
+			"Market listings viewer.\n\n" +
+			"Extends market.browse:\n" +
+			"- Shows inner market details in one table\n" +
+			"- Sorting for any property, including cron_bot 'cost' (renamed: 'price')\n" +
+			"- Querying with mongo filters for any property including cron price\n" +
+			"- Human readable outputs for cooldowns, gc amounts, etc\n" +
+			'- Human readable *queries*, e.g. max_glock_amnt: { "gt": "1MGC" }\n' +
+			"- Query for k3y's using 3 letter k3y codes\n" +
+			'- Support for `N[key]`: `Vnull` like in sys.upgrades. Shorthand for { `N[key]`: { `N"$exists"`: `Vtrue` } }\n\n' +
+			args_table + "\n\n" +
+            "Useful macros\n" +
+            "- /m = maddy.market {{ name: {{ \"$regex\": \"{0}\" }} }}\n" +
+            "- /mm = maddy.market {{ name: {{ \"$regex\": \"{0}\" }}, {$} }}"
+		);
+	}
 
 	const lib = $fs.scripts.lib();
 
 	const sort_dir =
-		isRecord(args) && "sort_dir" in args && typeof args.sort_dir === "string"
-			? args.sort_dir.toLowerCase() === "asc"
-				? 1
-				: -1
+		isRecord(args) &&
+		"sort_dir" in args &&
+		typeof args.sort_dir === "number" &&
+		(args.sort_dir === 1 || args.sort_dir === -1)
+			? args.sort_dir
 			: undefined;
+
 	const sort: string[] =
 		isRecord(args) &&
 		"sort" in args &&
@@ -108,7 +141,10 @@ export default (context: Context, args: any) => {
 		isRecord(args) && "n" in args && typeof args.n === "number" ? args.n : 50;
 
 	const convertFromReadable = (key: string, value: unknown) => {
-		if (["cost", "max_glock_amnt"].includes(key) && typeof value === "string")
+		if (
+			["cost", "price", "max_glock_amnt"].includes(key) &&
+			typeof value === "string"
+		)
 			return lib.to_gc_num(value);
 
 		if (["cooldown", "expire_secs"].includes(key) && typeof value === "string")
@@ -133,12 +169,6 @@ export default (context: Context, args: any) => {
 		}
 	}
 
-	if (isRecord(args) && args.debug) {
-		// biome-ignore lint/performance/noDelete: <explanation>
-		delete args.debug;
-		return args;
-	}
-
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.sort;
 	// biome-ignore lint/performance/noDelete: <explanation>
@@ -147,36 +177,74 @@ export default (context: Context, args: any) => {
 	delete args.page;
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.n;
+
+	const args_price = args.price;
 	// biome-ignore lint/performance/noDelete: <explanation>
-	delete args.debug;
+	delete args.price;
+
+	// their query only consisted of `price` which isn't supported by market.browse
+	// only crons have a price (translated to `cost`), so lets just search for all crons
+	if (args_price !== undefined && !Object.keys(args).length)
+		Object.assign(args, { type: "bot_brain" });
+
+	if (isRecord(args) && args.debug) {
+		// biome-ignore lint/performance/noDelete: <explanation>
+		delete args.debug;
+		return args;
+	}
 
 	const market = $fs.market.browse(args);
 
 	if (!Array.isArray(market)) return market;
 	if (!market.length) return "no results";
 
+	let market_size = market.length;
+
 	const listings = market.map((x) => x.i);
 
 	let fetched = throwFailure(
 		$fs.market.browse({
-			// if we're sorting, get the entire market
+			// if we're sorting OR if a `price` arg was passed, get the entire market
 			// we slice the results later down to page size
-			i: sort.length
-				? listings.slice(0, 1000)
-				: listings.slice(page_size * page, page_size * (page + 1)),
+			i:
+				sort.length || args_price
+					? listings.slice(0, 1000)
+					: listings.slice(page_size * page, page_size * (page + 1)),
 		}),
-	);
+	).map((x) => {
+		if ("cost" in x.upgrade)
+			x.upgrade = Object.assign({}, x.upgrade, {
+				price: x.upgrade.cost,
+				cost: undefined,
+			});
+		return x;
+	});
+
+	// cron's `cost` property can't be queried in market.browse
+	// have to rename it to `price` for our usage
+	// and then do the filtering ourselves
+	if (args_price) {
+		fetched = fetched.filter((x) => {
+			if (!("price" in x.upgrade)) return false;
+
+			if (isRecord(args_price)) return mongoFilter(args_price, x.upgrade.price);
+
+			return x.upgrade.price === args_price;
+		});
+
+		market_size = fetched.length;
+	}
 
 	if (sort.length)
 		fetched = fetched.sort((a, b) => {
 			const mergedA = Object.assign({}, a.upgrade, {
-				price: a.cost,
+				cost: a.cost,
 				seller: a.seller,
 				i: a.i,
 			});
 
 			const mergedB = Object.assign({}, b.upgrade, {
-				price: b.cost,
+				cost: b.cost,
 				seller: b.seller,
 				i: b.i,
 			});
@@ -207,13 +275,13 @@ export default (context: Context, args: any) => {
 				)
 			: [];
 
-	const more = market.length - fetched.length;
+	const more = market_size - fetched.length;
 
 	let ret = table(
 		[
 			[
 				"i",
-				"price",
+				"cost",
 				"name",
 				"seller",
 				"type",
@@ -236,7 +304,7 @@ export default (context: Context, args: any) => {
 						let ret = stat in listing.upgrade ? listing.upgrade[stat] : "";
 
 						if (
-							["cost", "max_glock_amnt"].includes(stat) &&
+							["price", "cost", "max_glock_amnt"].includes(stat) &&
 							typeof ret === "number"
 						)
 							ret = lib.to_gc_str(ret);
@@ -262,8 +330,9 @@ export default (context: Context, args: any) => {
 		ret += `\ntotal listings: ${market.length}`;
 	}
 
-    if (market.length !== fetched.length && sort.length)
-        ret += "\n\nwarning: too many listings, sort may be inaccurate. try refining your query."
+	if (market_size !== fetched.length && sort.length)
+		ret +=
+			"\n\nwarning: too many listings, sort may be inaccurate. try refining your query.";
 
 	return ret;
 };
