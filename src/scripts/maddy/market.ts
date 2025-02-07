@@ -1,4 +1,4 @@
-import { isFailure } from "/lib/failure";
+import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 import { fromReadableTime, readableMs } from "/lib/time";
@@ -42,7 +42,27 @@ const UPGRADE_STATS = [
 	"cost",
 	"retries",
 	"k3y",
-];
+] as const;
+
+// if not present here, use default (1)
+const preferredSortDir = {
+	retries: -1,
+	magnara_len: -1,
+	p2_len: -1,
+	acct_nt_min: -1,
+	max_glock_amnt: -1,
+	salt_digits: -1,
+	up_count_min: -1,
+	name_count: -1,
+	rarity_count: -1,
+	digits: -1,
+	loc_count: -1,
+	chars: -1,
+	slots: -1,
+	count: -1,
+    amount: -1,
+    acc_mod: -1,
+} as Record<string, number>;
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export default (context: Context, args: any) => {
@@ -51,11 +71,11 @@ export default (context: Context, args: any) => {
 			"Market listings viewer.\n" +
 			"Args are passed to market.browse (with some mangling*). First n listings are fetched, and rendered in a table\n" +
 			"If searching for the same upgrade**, also display special stats\n\n" +
-            "*you may use human readable values (same format as script output) instead of plain numbers in queries.\n" + 
-            "   you may also use k3y 3 letter shorthands\n" +
-            "   lastly, passing `Vnull` as a prop will act the same as in sys.upgrades\n" +
+			"*you may use human readable values (same format as script output) instead of plain numbers in queries.\n" +
+			"   you may also use k3y 3 letter shorthands\n" +
+			"   lastly, passing `Vnull` as a prop will act the same as in sys.upgrades\n" +
 			'**same = name.replace(/_v./, "")\n\n' +
-			"`Nsort`: `Vstring | string[]` - sort *the page* by table headers\n" +
+			"`Nsort`: `Vstring | string[]` - sort by table headers. sorting is limited to first 1000 listings \n" +
 			"`Npage`: `Vnumber` - default 0\n" +
 			"`Nn`: `Vnumber` - page size. default 50\n" +
 			"`Ndebug`: `Vboolean` - return arguments passed to market.browse"
@@ -63,6 +83,12 @@ export default (context: Context, args: any) => {
 
 	const lib = $fs.scripts.lib();
 
+	const sort_dir =
+		isRecord(args) && "sort_dir" in args && typeof args.sort_dir === "string"
+			? args.sort_dir.toLowerCase() === "asc"
+				? 1
+				: -1
+			: undefined;
 	const sort: string[] =
 		isRecord(args) &&
 		"sort" in args &&
@@ -101,7 +127,7 @@ export default (context: Context, args: any) => {
 					convertFromReadable(parentKey, value),
 				);
 			} else {
-                if (parentValue === null) args[parentKey] = { $exists: true };
+				if (parentValue === null) args[parentKey] = { $exists: true };
 				else args[parentKey] = convertFromReadable(parentKey, parentValue);
 			}
 		}
@@ -116,6 +142,8 @@ export default (context: Context, args: any) => {
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.sort;
 	// biome-ignore lint/performance/noDelete: <explanation>
+	delete args.sort_dir;
+	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.page;
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.n;
@@ -127,25 +155,20 @@ export default (context: Context, args: any) => {
 	if (!Array.isArray(market)) return market;
 	if (!market.length) return "no results";
 
-	const fetched = market
-		.slice(page_size * page, page_size * (page + 1))
-		.flatMap((up) => {
-			if (_END - Date.now() < 500)
-				return Object.assign({}, up, {
-					seller: "",
-					upgrade: {
-						name: up.name,
-						rarity: up.rarity,
-						type: "",
-					},
-				}) as unknown as MarketListing;
+	const listings = market.map((x) => x.i);
 
-			const ret = $fs.market.browse({ i: up.i });
-			if (isFailure(ret)) return [];
-			// your types are wrong sam
-			return ret as unknown as MarketListing;
-		})
-		.sort((a, b) => {
+	let fetched = throwFailure(
+		$fs.market.browse({
+			// if we're sorting, get the entire market
+			// we slice the results later down to page size
+			i: sort.length
+				? listings.slice(0, 1000)
+				: listings.slice(page_size * page, page_size * (page + 1)),
+		}),
+	);
+
+	if (sort.length)
+		fetched = fetched.sort((a, b) => {
 			const mergedA = Object.assign({}, a.upgrade, {
 				price: a.cost,
 				seller: a.seller,
@@ -161,17 +184,14 @@ export default (context: Context, args: any) => {
 			for (const s of sort) {
 				if (!(s in mergedA && s in mergedB)) continue;
 
-				//@ts-ignore
 				if (mergedA[s] === mergedB[s]) continue;
 
-				//@ts-ignore
 				if (typeof mergedA[s] === "number" && typeof mergedB[s] === "number")
-					//@ts-ignore
-					return mergedA[s] - mergedB[s];
+					return (
+						(mergedA[s] - mergedB[s]) * (sort_dir ?? preferredSortDir?.[s] ?? 1)
+					);
 
-				//@ts-ignore
 				if (typeof mergedA[s] === "string" && typeof mergedB[s] === "string")
-					//@ts-ignore
 					return mergedA[s].localeCompare(mergedB[s]);
 			}
 
@@ -201,33 +221,35 @@ export default (context: Context, args: any) => {
 				...includedStats,
 			],
 			[],
-			...fetched.map((listing, index) => [
-				`${listing.i}`,
-				lib.to_gc_str(listing.cost),
-				`\`${listing.upgrade.rarity}${listing.upgrade.name}\``,
-				listing.seller,
-				listing.upgrade.type,
+			...fetched
+				.slice(page_size * page, page_size * (page + 1))
+				.map((listing, index) => [
+					`${listing.i}`,
+					lib.to_gc_str(listing.cost),
+					`\`${listing.upgrade.rarity}${listing.upgrade.name}\``,
+					listing.seller,
+					listing.upgrade.type,
 
-				includedStats.length ? "|" : "",
+					includedStats.length ? "|" : "",
 
-				...includedStats.map((stat) => {
-					let ret = stat in listing.upgrade ? listing.upgrade[stat] : "";
+					...includedStats.map((stat) => {
+						let ret = stat in listing.upgrade ? listing.upgrade[stat] : "";
 
-					if (
-						["cost", "max_glock_amnt"].includes(stat) &&
-						typeof ret === "number"
-					)
-						ret = lib.to_gc_str(ret);
+						if (
+							["cost", "max_glock_amnt"].includes(stat) &&
+							typeof ret === "number"
+						)
+							ret = lib.to_gc_str(ret);
 
-					if (
-						["cooldown", "expire_secs"].includes(stat) &&
-						typeof ret === "number"
-					)
-						ret = readableMs(ret * 1000);
+						if (
+							["cooldown", "expire_secs"].includes(stat) &&
+							typeof ret === "number"
+						)
+							ret = readableMs(ret * 1000);
 
-					return `${ret}`;
-				}),
-			]),
+						return `${ret}`;
+					}),
+				]),
 		],
 		context.cols,
 		3,
@@ -239,6 +261,9 @@ export default (context: Context, args: any) => {
 		ret += `\nlast page: ${Math.floor(market.length / page_size)}`;
 		ret += `\ntotal listings: ${market.length}`;
 	}
+
+    if (market.length !== fetched.length && sort.length)
+        ret += "\n\nwarning: too many listings, sort may be inaccurate. try refining your query."
 
 	return ret;
 };
