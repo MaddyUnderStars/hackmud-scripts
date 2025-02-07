@@ -10,16 +10,19 @@ export default (context: Context, args?: unknown) => {
 		"uzuri",
 		"oscilio",
 		"arakni",
-        "enigma",
+		"enigma",
 	];
 
-	if (!allowed.includes(context.caller)) {
-		$ms.maddy.xfer();
+	if (
+		context.calling_script &&
+		!allowed.includes(context.calling_script.split(".")[0])
+	)
 		throw new Error("unauthorized");
-	}
-    
-    if (isRecord(args) && typeof args.user === "string")
-        return { ok: allowed.includes(args.user) };
+
+	if (!allowed.includes(context.caller)) throw new Error("unauthorized");
+
+	if (isRecord(args) && typeof args.user === "string")
+		return { ok: allowed.includes(args.user) };
 
 	return { ok: true };
 };
