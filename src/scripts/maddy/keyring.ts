@@ -145,7 +145,9 @@ export default (context: Context, args: unknown) => {
 
 		$ms.sys.manage({ unload: keys.map((x) => x.i) });
 
-		const counts: Record<string, number> = {};
+		const counts: Record<string, number> = Object.fromEntries(
+			bankUsers.map((x) => [x, 0]),
+		);
 		for (const k of allKeys)
 			counts[k.user] = counts[k.user] ? counts[k.user] + 1 : 1;
 
