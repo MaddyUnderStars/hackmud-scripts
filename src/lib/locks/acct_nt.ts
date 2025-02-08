@@ -6,20 +6,20 @@ const around = (a: Date, b: Date) =>
 	a.valueOf() < b.valueOf() + 60 * 1000;
 
 const getIndexes = (startDate: Date, endDate: Date, list: Transation[]) => {
-	const potentionalStartIndexes: number[] = [];
-	const potentionalEndIndexes: number[] = [];
+	const potentialStartIndexes: number[] = [];
+	const potentialEndIndexes: number[] = [];
 	for (let i = 0; i < list.length; i++) {
 		const x = list[i];
 		if (around(x.time, startDate)) {
-			potentionalStartIndexes.push(i);
+			potentialStartIndexes.push(i);
 		}
 
 		if (around(x.time, endDate)) {
-			potentionalEndIndexes.push(i);
+			potentialEndIndexes.push(i);
 		}
 	}
 
-	return [potentionalStartIndexes, potentionalEndIndexes];
+	return [potentialStartIndexes, potentialEndIndexes];
 };
 
 export const acct_nt: LockSolver = function* (context, log) {
@@ -34,14 +34,14 @@ export const acct_nt: LockSolver = function* (context, log) {
 		const startDate = game_ts_to_date(start);
 		const endDate = game_ts_to_date(end);
 
-		const [potentionalStartIndexes, potentionalEndIndexes] = getIndexes(
+		const [potentialStartIndexes, potentialEndIndexes] = getIndexes(
 			startDate,
 			endDate,
 			transactions,
 		);
 
-		log(`start = ${potentionalStartIndexes.join(", ")}`);
-		log(`end = ${potentionalEndIndexes.join(", ")}`);
+		log(`start = ${potentialStartIndexes.join(", ")}`);
+		log(`end = ${potentialEndIndexes.join(", ")}`);
 
 		const sumTransactions = (list: Transation[]) =>
 			list
@@ -50,8 +50,8 @@ export const acct_nt: LockSolver = function* (context, log) {
 
 		const attempts = new Set<number>();
 
-		for (const start of potentionalStartIndexes) {
-			for (const end of potentionalEndIndexes) {
+		for (const start of potentialStartIndexes) {
+			for (const end of potentialEndIndexes) {
 				const slice = transactions.slice(start, end);
 				const sum = sumTransactions(slice);
 				if (attempts.has(sum)) continue;
@@ -73,7 +73,7 @@ export const acct_nt: LockSolver = function* (context, log) {
 			memos === "with" ? !!x.memo : !x.memo,
 		);
 
-		const [potentionalStartIndexes, potentionalEndIndexes] = getIndexes(
+		const [potentialStartIndexes, potentialEndIndexes] = getIndexes(
 			startDate,
 			endDate,
 			list,
@@ -89,14 +89,14 @@ export const acct_nt: LockSolver = function* (context, log) {
 				.map((x) => (x.recipient === context.caller ? x.amount : -x.amount))
 				.reduce((prev, curr) => prev + curr, 0);
 
-		log(`start indexes - ${potentionalStartIndexes.join(", ")}`);
-		log(`end indexes - ${potentionalEndIndexes.join(", ")}`);
+		log(`start indexes - ${potentialStartIndexes.join(", ")}`);
+		log(`end indexes - ${potentialEndIndexes.join(", ")}`);
 
 		// just brute it for now
 		const l = new Set();
 
-		for (const start of potentionalStartIndexes) {
-			for (const end of potentionalEndIndexes) {
+		for (const start of potentialStartIndexes) {
+			for (const end of potentialEndIndexes) {
 				l.add(Math.abs(sumTransactions(list.slice(start, end))));
 			}
 		}
@@ -128,7 +128,7 @@ export const acct_nt: LockSolver = function* (context, log) {
 			if (around(list[i].time, date)) potential.push(i);
 		}
 
-		log(`potentional: ${potential.join(", ")}`);
+		log(`potential: ${potential.join(", ")}`);
 
 		// try all the ones in the range first
 		for (const i of potential) {
