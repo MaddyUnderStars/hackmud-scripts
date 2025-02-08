@@ -2,7 +2,7 @@ import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 
 export default function (context: Context, args?: unknown) {
-	const trash = $hs.sys.upgrades({
+	const trash = $ls.sys.upgrades({
 		filter: {
 			loaded: false,
 		},
@@ -14,7 +14,7 @@ export default function (context: Context, args?: unknown) {
 	if (!Array.isArray(trash)) return trash;
 
 	const filtered = trash
-		.filter((x) => x.rarity < 3)
+		.filter((x) => x.rarity <= 3)
 		.filter((x) => !x.loaded)
 		.filter((x) => !x.name.includes("k3y"));
 
@@ -25,6 +25,14 @@ export default function (context: Context, args?: unknown) {
 	for (const item of filtered) {
 		const s = JSON.parse(JSON.stringify(item));
 		for (const key of ["i", "sn", "loaded", "description"]) delete s[key];
+
+        if (s.cooldown) s.cooldown = { $gte: s.cooldown }
+        if (s.amount) s.amount = { $gte: s.amount }
+        if (s.cost) s.cost = { $gte: s.cost }
+        if (s.count) s.count = { $lte: s.count }
+        if (s.chars) s.chars = { $lte: s.chars }
+        if (s.max_glock_amnt) s.max_glock_amnt = { $lte: s.max_glock_amnt }
+        if (s.expire_secs) s.expire_secs = { $gte: s.expire_secs }
 
 		const market = $ls.market.browse(s);
 
@@ -39,11 +47,21 @@ export default function (context: Context, args?: unknown) {
 		if (!index) continue;
 
 		if (!Array.isArray(market) || !market.length) {
-			if (index.rarity < 1 && isRecord(args) && "dry" in args && !args.dry)
-				$ls.sys.cull({
-					i: index.i,
-					confirm: true,
-				});
+			if (index.rarity < 3) {
+				if (isRecord(args) && "dry" in args && !args.dry)
+					$ls.sys.cull({
+						i: index.i,
+						confirm: true,
+					});
+
+				log.push([
+					`${index.i}`,
+					`\`${item.rarity}${item.name}\``,
+					"",
+					"",
+					"CULL no market",
+				]);
+			}
 
 			continue;
 		}
@@ -54,15 +72,25 @@ export default function (context: Context, args?: unknown) {
 		// get the new index of this up
 
 		const sellCost = market[0].cost;
-        const returnValue = sellCost * 0.9;
+		const returnValue = sellCost * 0.9;
 
 		const listFee = Math.max(sellCost * 0.05, 1_000);
 
-		if (listFee >= returnValue && isRecord(args) && "dry" in args && !args.dry) {
-			$ls.sys.cull({
-				i: index.i,
-				confirm: true,
-			});
+		if (listFee >= returnValue) {
+			log.push([
+				`${index.i}`,
+				`\`${item.rarity}${item.name}\``,
+				"",
+				"",
+				"CULL poor return",
+			]);
+
+			if (isRecord(args) && "dry" in args && !args.dry)
+				$ls.sys.cull({
+					i: index.i,
+					confirm: true,
+				});
+
 			continue;
 		}
 
@@ -86,11 +114,12 @@ export default function (context: Context, args?: unknown) {
 			`\`${item.rarity}${item.name}\``,
 			lib.to_gc_str(sellCost),
 			lib.to_gc_str(listFee),
+			"sell",
 		]);
 	}
 
 	return table(
-		[["i", "name", "sell price", "list fee"], [], ...log],
+		[["i", "name", "sell price", "list fee", "action"], [], ...log],
 		context.cols,
 	);
 

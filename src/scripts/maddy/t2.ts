@@ -51,7 +51,7 @@ const getCurrentLock = (out: string) => {
 		!lastlock.length
 	)
 		lastlock = removeColour(lock);
-        
+
 	return lastlock;
 };
 
@@ -64,7 +64,7 @@ export default function (context: Context, args?: unknown) {
 	const exec = (p?: unknown) => {
 		const ret = (args.s as Scriptor).call(p);
 
-        let e: string;
+		let e: string;
 
 		if (typeof ret === "string") e = ret;
 		else if (Array.isArray(ret)) e = ret.join("\n");
@@ -72,13 +72,14 @@ export default function (context: Context, args?: unknown) {
 			e = ret.msg;
 		else e = JSON.stringify(ret);
 
-        if (e.includes("anon_self_destruct")) throw new Error("anon_self_destruct");
+		if (e.includes("anon_self_destruct")) throw new Error("anon_self_destruct");
 
-        return e;
+		return e;
 	};
 
 	const solve = args.p ? args.p : {};
 	let state = exec(solve);
+	let calls = 0;
 
 	if (state.includes("different")) return state;
 	if (state.includes("more than 4")) return state;
@@ -92,16 +93,18 @@ export default function (context: Context, args?: unknown) {
 		}
 
 		const { log, stop } = createLogger(`\`N${lock}\``);
+		calls = 0;
 		const gen = handler(context, log);
 
 		while (getCurrentLock(state) === lock) {
 			if (_END - Date.now() < 1200) {
-				stop("timeout");
+				stop(`timeout. did ${calls} calls`);
 				return getLog().join("\n");
 			}
 
 			if (isBreached(state)) break;
 			try {
+				calls++;
 				const iter = gen.next(state);
 				if (iter.done) {
 					stop(`returned ${JSON.stringify(iter.value)}`);

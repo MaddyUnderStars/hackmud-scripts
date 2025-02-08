@@ -26,7 +26,9 @@ export const magnara: LockSolver = function* (context, log) {
 
 	log("no magnara dict, bruting");
 
-	const LIMIT = 6;
+	const LIMIT = 10;
+
+	const tried = new Set<string>();
 
 	// if the word is small enough, just brute it
 	if (word.length < LIMIT) {
@@ -35,7 +37,9 @@ export const magnara: LockSolver = function* (context, log) {
 		try {
 			for (const perm of gen) {
 				found = perm.join("");
+				if (tried.has(found)) continue;
 				yield { magnara: found };
+				tried.add(found);
 			}
 		} finally {
 			if (!found) {
@@ -46,4 +50,6 @@ export const magnara: LockSolver = function* (context, log) {
 			}
 		}
 	}
+
+	return "no word?";
 };
