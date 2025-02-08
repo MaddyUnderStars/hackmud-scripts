@@ -142,7 +142,7 @@ export default (context: Context, args: any) => {
 
 	const convertFromReadable = (key: string, value: unknown) => {
 		if (
-			["cost", "price", "max_glock_amnt"].includes(key) &&
+			["cost", "price", "max_glock_amnt", "amount"].includes(key) &&
 			typeof value === "string"
 		)
 			return lib.to_gc_num(value);
@@ -304,7 +304,7 @@ export default (context: Context, args: any) => {
 						let ret = stat in listing.upgrade ? listing.upgrade[stat] : "";
 
 						if (
-							["price", "cost", "max_glock_amnt"].includes(stat) &&
+							["price", "cost", "max_glock_amnt", "amount"].includes(stat) &&
 							typeof ret === "number"
 						)
 							ret = lib.to_gc_str(ret);
