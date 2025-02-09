@@ -65,6 +65,6 @@ export const breachedJob: JobHandler = (context, log) => {
 		const loc = record.msg.match(LOC_REGEX);
 		if (!loc) continue;
 
-		$db.us({ _id: `player_loc_${record.u}` }, { $set: { loc: loc[0] } });
+		$db.us({ _id: `loc_${record.u}` }, { $set: { loc: loc[0] } });
 	}
 };

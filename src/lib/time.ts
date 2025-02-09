@@ -1,3 +1,5 @@
+import { padStart } from "./padStartColor";
+
 export const readableMs = (ms: number) => {
 	let _ms = ms;
 	let s = Math.floor(Math.abs(_ms) / 1000);
@@ -10,16 +12,16 @@ export const readableMs = (ms: number) => {
 	h = h % 24;
 
 	let ret = "";
-	if (d) ret += `${d}\`Dd\` `;
-	if (h) ret += `${h}\`5h\` `;
-	if (m) ret += `${m}\`4m\` `;
-	if (s) ret += `${s}\`Ls\``;
-	if (_ms) ret += `${_ms}ms`;
+	if (d) ret += `${d}\`Dd\``;
+	if (h) ret += ` ${padStart(`${h}`, 2, "`b0`")}\`5h\``;
+	if (m) ret += ` ${padStart(`${m}`, 2, "`b0`")}\`4m\``;
+	if (s) ret += ` ${padStart(`${s}`, 2, "`b0`")}\`Ls\``;
+	if (_ms) ret += ` ${padStart(`${_ms}`, 4, "`b0`")}\`0ms\``;
 
 	return ret;
 };
 
-const timeRegex = /(\d*d)?(\d*h)?(\d*m)?(\d*s)?(\d*ms)?/;
+const timeRegex = /(\d*d)?\s?(\d*h)?\s?(\d*m)?\s?(\d*s)?\s?(\d*ms)?/;
 export const fromReadableTime = (str: string) => {
 	const match = str.match(timeRegex);
 	if (!match) throw new Error(`${str} is not a valid human readable timestamp`);

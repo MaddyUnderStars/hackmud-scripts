@@ -99,7 +99,7 @@ export default function (context: Context, args?: unknown) {
 		while (getCurrentLock(state) === lock) {
 			if (_END - Date.now() < 1200) {
 				stop(`timeout. did ${calls} calls`);
-				return getLog().join("\n");
+				return `${getLog().join("\n")}\n\nlast solve: ${JSON.stringify(solve)}`;
 			}
 
 			if (isBreached(state)) break;

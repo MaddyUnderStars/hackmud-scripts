@@ -2,7 +2,17 @@ import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { table } from "/lib/table";
 
+const sources: Array<[() => Array<Record<string, unknown>>, string]> = [
+	[() => throwFailure($ms.squizzy.ups()), "squizzy"],
+	[() => throwFailure($ms.enigma.ups()), "enigma"],
+	[() => throwFailure($ms.arakni.ups()), "arakni"],
+	[() => throwFailure($ms.katsu.ups()), "katsu"],
+	[() => throwFailure($ms.oscilio.ups()), "oscilio"],
+];
+
 export default function (context: Context, args?: unknown) {
+	$ms.maddy.whitelist();
+
 	const trash = $ls.sys.upgrades({
 		filter: {
 			loaded: false,
@@ -32,14 +42,15 @@ export default function (context: Context, args?: unknown) {
 	}[] = [];
 
 	for (const item of filtered) {
-		if (item.rarity > 2) {
+		if (_END - Date.now() < 1000) break;
+
+		if (item.rarity > 2 || item.type === "glam") {
 			operations.push({
 				op: "store",
 				sn: item.sn,
 				name: `\`${item.rarity}${item.name}\``,
-				msg: "rarity > 2",
 			});
-            continue;
+			continue;
 		}
 
 		const s = JSON.parse(JSON.stringify(item));
@@ -91,6 +102,20 @@ export default function (context: Context, args?: unknown) {
 	}
 
 	if (isRecord(args) && "dry" in args && !args.dry) {
+		const ups = throwFailure($hs.sys.upgrades({ full: true }));
+
+		$ls.sys.cull({
+			i: operations
+				.filter((x) => x.op === "cull")
+				.map((x) => ups.find((y) => y.sn === x.sn)?.i ?? -1),
+			confirm: true,
+		});
+
+		const bankUserUps = sources.map((x) => ({
+			count: x[0]().length,
+			user: x[1],
+		}));
+
 		const totalFees = operations
 			.map((x) => x.fee ?? 0)
 			.reduce((prev, curr) => prev + curr, 0);
@@ -113,7 +138,14 @@ export default function (context: Context, args?: unknown) {
 				continue;
 			}
 
-            if (item.op === "store") continue;
+			if (item.op === "store") {
+				const lowest = bankUserUps.sort((a, b) => a.count - b.count)[0];
+
+				throwFailure($ls.sys.xfer_upgrade_to({ to: lowest.user, sn: item.sn }));
+
+				// biome-ignore lint/style/noNonNullAssertion: <explanation>
+				bankUserUps.find((x) => x.user === lowest.user)!.count++;
+			}
 
 			if (!item.cost) continue;
 

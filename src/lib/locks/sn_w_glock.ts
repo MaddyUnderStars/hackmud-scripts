@@ -16,7 +16,7 @@ export const sn_w_glock: LockSolver = function* (context, log) {
 		.array();
 
 	const amount = amounts.find((x) => input.toLowerCase().includes(x.q))?.a;
-	if (!amount) throw new Error("no sn_w_glock amnt");
+	if (!amount) return "no glock amount";
 
 	log(`glock needs ${amount}`);
 
