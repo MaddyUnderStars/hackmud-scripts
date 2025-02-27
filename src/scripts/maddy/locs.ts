@@ -13,7 +13,7 @@ export default (
 	if (!args || !isRecord(args))
 		return {
 			ok: true,
-			msg: `${$db.f({ _id: { $regex: "loc" } }).count()} locs in db`,
+			msg: `${$db.f({ _id: { $regex: "loc" } }).count()} locs in db\nuse {} for all locs.\nuse \`Nuser\`: \`Vstring\` to get user loc\npass space delimited string to add locs`,
 		};
 
 	if (!Object.keys(args).length)

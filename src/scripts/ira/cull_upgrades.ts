@@ -123,15 +123,16 @@ export default function (context: Context, args?: unknown) {
 		$ms.maddy.xfer({ amount: Math.ceil(totalFees) });
 
 		for (const item of operations) {
-			const index = throwFailure($hs.sys.upgrades({ full: true })).find(
+			const up = throwFailure($hs.sys.upgrades({ full: true })).find(
 				(x) => x.sn === item.sn,
-			)?.i;
-			if (!index) continue;
+			);
+
+			if (!up) continue;
 
 			if (item.op === "cull") {
 				throwFailure(
 					$ls.sys.cull({
-						i: index,
+						i: up.i,
 						confirm: true,
 					}),
 				);
@@ -149,13 +150,22 @@ export default function (context: Context, args?: unknown) {
 
 			if (!item.cost) continue;
 
-			throwFailure(
+			const { token } = throwFailure(
 				$ls.market.sell({
-					i: index,
+					i: up.i,
 					cost: Math.floor(item.cost),
 					confirm: true,
 				}),
 			);
+
+            $db.i({
+                _id: `market_watch_${token}`,
+                ...up,
+                _token: token,
+                _date: new Date(),
+                _price: Math.floor(item.cost),
+                _seller: context.caller,
+            });
 		}
 	}
 

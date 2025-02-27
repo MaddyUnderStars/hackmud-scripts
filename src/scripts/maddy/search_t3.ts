@@ -142,7 +142,7 @@ export default function (context: Context, args?: unknown) {
 			);
 			return (
 				// biome-ignore lint/style/useTemplate: <explanation>
-				`maddy.t3_pin_brute { s: #s.${priv.name}, u: "${username}", c: ${pin} }\n\n` +
+				`maddy.search_t3 { s: #s.${priv.name}, u: "${username}", c: ${pin} }\n\n` +
 				"timing:\n" +
 				`first call - ${timings[0]}ms\n` +
 				`rest - ${Math.round(timings.slice(1).reduce((prev, curr) => prev + curr) / (timings.length - 1))}ms\n` +
@@ -151,10 +151,12 @@ export default function (context: Context, args?: unknown) {
 		}
 
 		const start = Date.now();
-		const ret = $fs.maddy.read({
-			s: priv,
-			a: { username, pin: String(pin).padStart(4, "0") },
-		});
+		const ret = throwFailure(
+			$fs.maddy.read({
+				s: priv,
+				a: { username, pin: String(pin).padStart(4, "0") },
+			}),
+		);
 		timings.push(Date.now() - start);
 
 		if (ret.includes("incorrect")) continue;

@@ -109,8 +109,6 @@ export const acct_nt: LockSolver = function* (context, log) {
 			};
 		}
 	} else if (input.includes("large")) {
-		log("mode large");
-
 		const [_, type, timestamp] = input.match(
 			/large (deposit|withdrawal) near (.+)$/,
 		);
@@ -122,6 +120,8 @@ export const acct_nt: LockSolver = function* (context, log) {
 				? x.sender === context.caller
 				: x.recipient === context.caller,
 		);
+
+		log(`mode large type ${type} around ${timestamp}`);
 
 		const potential: number[] = [];
 		for (let i = 0; i < list.length; i++) {
@@ -141,8 +141,8 @@ export const acct_nt: LockSolver = function* (context, log) {
 
 		// then try search
 		const pick = potential[0];
-		attempts.add(list[pick].amount);
-		yield { acct_nt: list[pick].amount };
+		attempts.add(list[pick]?.amount ?? 0);
+		yield { acct_nt: list[pick]?.amount ?? 0 };
 		for (let i = 0; i < list.length; i++) {
 			if (list[pick + i] && !attempts.has(pick + i)) {
 				attempts.add(pick + i);

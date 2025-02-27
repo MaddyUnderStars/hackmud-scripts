@@ -47,6 +47,13 @@ const getCurrentLock = (out: string) => {
 	if (out.includes("l0ckjaw")) return "l0ckjaw";
 
 	if (
+		out.includes("net GC") ||
+		out.includes("transactions") ||
+		(out.includes("large") && out.split("\n").length === 1)
+	)
+		return "acct_nt";
+
+	if (
 		handlers[lock.substring(0, lock.length - 1).substring(2)] ||
 		!lastlock.length
 	)

@@ -1,6 +1,23 @@
-
 export default function (context: Context, args?: unknown) {
-	return $db.f({ s: "t1", k: "l0cket" }).array();
+	for (let i = 0; i < 100; i++) {
+		$D(
+			$fs.maddy.read({
+				s: {
+					call: () =>
+						$ls.archaic.employee_login({
+							username: "chad_bose",
+							pin: "0367",
+							perform: "enhance",
+							passphrase: "mediumredcar",
+							page: i,
+						}),
+					name: "archaic.employee_login",
+				},
+			}),
+		);
+	}
+
+	return;
 
 	$db.r({ s: "t2", k: "sn_w_glock" });
 

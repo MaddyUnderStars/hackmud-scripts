@@ -61,10 +61,7 @@ export const breachedJob: JobHandler = (context, log) => {
 
 	const access = throwFailure($ls.sys.access_log()).filter((x) => x.u);
 
-	for (const record of access) {
-		const loc = record.msg.match(LOC_REGEX);
-		if (!loc) continue;
-
-		$db.us({ _id: `loc_${record.u}` }, { $set: { loc: loc[0] } });
-	}
+	$fs.maddy.locs({
+		input: access.map((x) => x.msg.match(LOC_REGEX)?.[0]).filter((x) => !!x),
+	});
 };

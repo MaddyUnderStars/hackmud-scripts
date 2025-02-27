@@ -62,8 +62,6 @@ export default function (
 		$fs.world_pop.public,
 	];
 
-	$fs.maddy.whitelist();
-
 	if (args) {
 		if (isRecord(args) && args.projects)
 			return $db

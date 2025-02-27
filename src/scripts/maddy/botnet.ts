@@ -33,6 +33,13 @@ export default (context: Context, args?: unknown) => {
 		},
 	);
 
+	const fortnightOld = new Date();
+	fortnightOld.setDate(fortnightOld.getDate() - 14);
+	$db.r({
+		_id: { $regex: `botnet_log_${context.caller}` },
+		date: { $lt: fortnightOld },
+	});
+
 	// for each job
 	for (const [name, job] of Object.entries(jobs)) {
 		// if in risk of timeout, return
