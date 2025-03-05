@@ -46,8 +46,9 @@ export default (context: Context, args?: unknown) => {
 		if (_END - Date.now() < 500) return;
 
 		// create new job log
+        const start = new Date();
 		const logId = makeBotnetLogId(context.caller, name);
-		$db.i({ _id: logId, date: new Date() });
+		$db.i({ _id: logId, run_id: _RUN_ID, date: start });
 
 		// run job handler
 		const { log, stop } = createLogger(`job: ${name}`);
@@ -55,6 +56,16 @@ export default (context: Context, args?: unknown) => {
 		const logs = stop();
 
 		// mark job in log as done
-		$db.u({ _id: logId }, { $set: { logs: logs } });
+		$db.u({ _id: logId }, { $set: { logs: logs, dt: Date.now() - start.valueOf() } });
 	}
+
+	// record our time remaining, too
+	$db.us(
+		{ _id: makeBotnetCheckinId(context.caller) },
+		{
+			$set: {
+				remaining: Date.now() - _ST,
+			},
+		},
+	);
 };

@@ -13,7 +13,7 @@ export default (context: Context, args?: unknown) => {
                     : undefined
             : undefined;
 
-    if (!tokens || !tokens.length) return "maddy.market_buy { `Ni`: `Vstring | string[]` }";
+    if (!tokens || !tokens.length) return "maddy.market_buy tokens...";
 
     const listings = throwFailure($fs.market.browse({ i: tokens }));
 

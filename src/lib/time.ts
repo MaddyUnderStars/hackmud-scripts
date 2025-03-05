@@ -18,7 +18,7 @@ export const readableMs = (ms: number) => {
 	if (s) ret += ` ${padStart(`${s}`, 2, "`b0`")}\`Ls\``;
 	if (_ms) ret += ` ${padStart(`${_ms}`, 4, "`b0`")}\`0ms\``;
 
-	return ret;
+	return ret.trim();
 };
 
 const timeRegex = /(\d*d)?\s?(\d*h)?\s?(\d*m)?\s?(\d*s)?\s?(\d*ms)?/;

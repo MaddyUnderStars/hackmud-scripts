@@ -18,12 +18,20 @@ export default (context: Context, args?: unknown) => {
 				_id: { $regex: `botnet_log_${args.user}` },
 				logs: { $type: "array" },
 				date: { $type: "date" },
+				run_id: { $type: "string" },
 			})
 			.limit(20)
-			.sort({ date: -1 })
+			.sort({ date: 1 })
 			.array();
 
-		return logs.flatMap((log) => [log.date, log.logs, "\n"]);
+		const grouped: Record<string, (typeof logs)[0]["logs"]> = {};
+		for (const log of logs) {
+			grouped[log.run_id] = grouped[log.run_id]
+				? grouped[log.run_id].concat(log.logs.flat())
+				: log.logs.flat();
+		}
+
+		return grouped;
 	}
 
 	const checkins = users.flatMap((name) =>
@@ -33,13 +41,14 @@ export default (context: Context, args?: unknown) => {
 				date: { $type: "date" },
 				breached: { $type: "bool" },
 				brain: { $type: "object" },
+				remaining: { $type: "int" },
 			})
 			.array(),
 	);
 
 	return `Botnet health\n\nactive jobs: ${Object.keys(jobs).join(", ")}\n\n${table(
 		[
-			["user", "status", "last check-in", ""],
+			["user", "status", "last check-in", "runtime", ""],
 			[],
 			...checkins.map((x) => {
 				const name = x._id.split("_").slice(-1)[0];
@@ -48,6 +57,7 @@ export default (context: Context, args?: unknown) => {
 					name,
 					x.breached ? "`DBREACHED`" : "`LSafe`",
 					readableMs(Date.now() - x.date.valueOf()),
+					readableMs(_TIMEOUT - x.remaining),
 					(x.brain.cooldown as number) < (Date.now() - x.date.valueOf()) / 1000
 						? "`DMISSED CHECK-IN`"
 						: "",
