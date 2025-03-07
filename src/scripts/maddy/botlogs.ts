@@ -21,7 +21,7 @@ export default (context: Context, args?: unknown) => {
 				run_id: { $type: "string" },
 			})
 			.limit(20)
-			.sort({ date: 1 })
+			.sort({ date: -1 })
 			.array();
 
 		const grouped: Record<string, (typeof logs)[0]["logs"]> = {};
@@ -31,7 +31,25 @@ export default (context: Context, args?: unknown) => {
 				: log.logs.flat();
 		}
 
-		return grouped;
+		let built = "";
+		for (const group of Object.values(grouped)) {
+			//@ts-ignore;
+			const sorted = group.sort((a, b) => a.date - b.date);
+
+			//@ts-ignore;
+			const start: Date = sorted[0].date;
+
+			//@ts-ignore
+			built += `${sorted
+				.map(
+					(x) =>
+						//@ts-ignore
+						`\`C[\`${readableMs(x.date.valueOf() - start.valueOf(), 2)}\`C]\` ${x.msg}`,
+				)
+				.join("\n")}\n\n`;
+		}
+
+		return built;
 	}
 
 	const checkins = users.flatMap((name) =>

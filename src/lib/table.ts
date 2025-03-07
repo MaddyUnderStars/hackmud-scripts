@@ -16,7 +16,8 @@ export const table = (cells: string[][], columns: number, padding = 5) => {
 		let size = 0;
 		for (let rowIndex = 0; rowIndex < cells.length; rowIndex++) {
 			const cell = cells[rowIndex][columnIndex];
-			size = cell?.length > size ? cell.length : size;
+			const colourless = removeColour(cell) ?? "";
+			size = colourless?.length > size ? colourless.length : size;
 		}
 
 		columnSizes.push(size + padding);

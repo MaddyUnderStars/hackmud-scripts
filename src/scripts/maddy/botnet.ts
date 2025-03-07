@@ -46,17 +46,24 @@ export default (context: Context, args?: unknown) => {
 		if (_END - Date.now() < 500) return;
 
 		// create new job log
-        const start = new Date();
+		const start = new Date();
 		const logId = makeBotnetLogId(context.caller, name);
 		$db.i({ _id: logId, run_id: _RUN_ID, date: start });
 
 		// run job handler
 		const { log, stop } = createLogger(`job: ${name}`);
-		job(context, log);
+		try {
+			job(context, log);
+		} catch (e) {
+			log(e instanceof Error ? e.message : (e?.toString() ?? "unknown error"));
+		}
 		const logs = stop();
 
 		// mark job in log as done
-		$db.u({ _id: logId }, { $set: { logs: logs, dt: Date.now() - start.valueOf() } });
+		$db.u(
+			{ _id: logId },
+			{ $set: { logs: logs, dt: Date.now() - start.valueOf() } },
+		);
 	}
 
 	// record our time remaining, too

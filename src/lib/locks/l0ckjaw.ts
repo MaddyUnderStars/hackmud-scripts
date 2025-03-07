@@ -1,3 +1,4 @@
+import { isFailure } from "../failure";
 import type { LockSolver } from "./type";
 import type { Key } from "/scripts/maddy/keyring";
 
@@ -14,7 +15,7 @@ export const l0ckjaw: LockSolver = function* (context, log) {
 		load: duplicates.map((x) => x),
 		unload: true,
 	});
-	if (!ret.ok) return ret;
+	if (isFailure(ret)) return ret;
 
 	yield {};
 

@@ -1,3 +1,4 @@
+import { adJob } from "./jobs/ad";
 import { breachedJob } from "./jobs/breached";
 import { marketwatchJob } from "./jobs/marketwatch";
 import { upgradesJob } from "./jobs/upgrades";
@@ -5,7 +6,8 @@ import { upgradesJob } from "./jobs/upgrades";
 export type JobHandler = (context: Context, log: (str: string) => void) => void;
 
 export default {
-    "breached": breachedJob,
-    "upgrades": upgradesJob,
-    "marketwatch": marketwatchJob,
+	breached: breachedJob,
+	upgrades: upgradesJob,
+	marketwatch: marketwatchJob,
+	ad: adJob,
 } as Record<string, JobHandler>;
