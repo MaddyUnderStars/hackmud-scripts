@@ -2,7 +2,6 @@
 	"compilerOptions": {
 		"moduleResolution": "Node",
 		"resolveJsonModule": true,
-		"noEmit": true,
 		"checkJs": false,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
@@ -11,6 +10,9 @@
 		"lib": [ "ES2022" ],
 		"types": [ "hackmud-script-manager/env" ],
 		"strict": true,
-		"paths": { "/*": [ "./src/*" ] }
+		"paths": { "/*": [ "./src/*" ] },
+        "outDir": "./dist",
+        "sourceMap": true,
+        "inlineSourceMap": false
 	}
 }

@@ -4,7 +4,7 @@ export default (context: Context, args?: unknown) => {
 	// swap and extend as needed
 	const lockPriority = [
 		"CON_TELL",
-        "w4rn_er",
+		"w4rn_er",
 		"acct_nt",
 		"sn_w_glock",
 		"shfflr",
@@ -26,9 +26,11 @@ export default (context: Context, args?: unknown) => {
 		.map((a) => a.i);
 
 	//@ts-ignore
-	const sortedOther = throwFailure(
-		//@ts-ignore
-		$hs.sys.upgrades({ filter: { type: { $ne: "lock" } } }) as unknown[],
+	const sortedOther = (
+		throwFailure(
+			//@ts-ignore
+			$hs.sys.upgrades({ filter: { type: { $ne: "lock" } } }) as unknown[],
+		) as Upgrade[]
 	)
 		.sort(genericSort)
 		.map((a) => a.i);
@@ -39,7 +41,7 @@ export default (context: Context, args?: unknown) => {
 	return throwFailure($hs.sys.upgrades({ is_script: false })).upgrades;
 
 	// sort locks by lockPriority array
-	function lockSort(a, b) {
+	function lockSort(a: Upgrade, b: Upgrade) {
 		let indexA = lockPriority.indexOf(a.name);
 		let indexB = lockPriority.indexOf(b.name);
 
@@ -49,8 +51,10 @@ export default (context: Context, args?: unknown) => {
 		return indexA - indexB;
 	}
 
+	type Upgrade = { name: string; rarity: number; loaded: boolean; i: number };
+
 	// sort all other upgrades by loaded, name, and rarity
-	function genericSort(a, b) {
+	function genericSort(a: Upgrade, b: Upgrade) {
 		if (a.loaded === b.loaded) {
 			if (a.name === b.name) {
 				return a.rarity - b.rarity;
@@ -60,7 +64,7 @@ export default (context: Context, args?: unknown) => {
 		return a.loaded ? -1 : 1;
 	}
 
-	function reorderUpgrades(sortedArray, offset = 0) {
+	function reorderUpgrades(sortedArray: number[], offset = 0) {
 		for (let s = sortedArray.length - 1; s >= 0; s--) {
 			const from = sortedArray[s];
 			const to = offset;

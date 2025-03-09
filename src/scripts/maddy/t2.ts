@@ -16,7 +16,7 @@ import { l0ckjaw } from "/lib/locks/l0ckjaw";
 import { magnara } from "/lib/locks/magnara";
 import { sn_w_glock } from "/lib/locks/sn_w_glock";
 import type { LockSolver } from "/lib/locks/type";
-import { createLogger, getLog } from "/lib/log";
+import { LOG_LEVEL, createLogger, getLog } from "/lib/log";
 
 const handlers: Record<string, LockSolver> = {};
 
@@ -38,10 +38,10 @@ handlers.EZ_40 = ez_40;
 const isBreached = (out: string) =>
 	out.toLowerCase().includes("connection terminated");
 
-let lastlock = "";
+let lastLock = "";
 const getCurrentLock = (out: string) => {
-	const lastline = out.split("\n").slice(-1)[0];
-	const lock = lastline.split(" ").slice(-2)[0];
+	const lastLine = out.split("\n").slice(-1)[0];
+	const lock = lastLine.split(" ").slice(-2)[0];
 
 	if (out.includes("appropriate k3y")) return "l0ckbox";
 	if (out.includes("l0ckjaw")) return "l0ckjaw";
@@ -55,16 +55,19 @@ const getCurrentLock = (out: string) => {
 
 	if (
 		handlers[lock.substring(0, lock.length - 1).substring(2)] ||
-		!lastlock.length
+		!lastLock.length
 	)
-		lastlock = removeColour(lock);
+		lastLock = removeColour(lock);
 
-	return lastlock;
+	return lastLock;
 };
 
 export default function (context: Context, args?: unknown) {
 	if (!isRecord(args))
-		return { ok: false, msg: "maddy.t2 { s: #s.example.loc }" };
+		return {
+			ok: false,
+			msg: "maddy.t2 { s: #s.example.loc, debug?: boolean }",
+		};
 
 	if (!isScriptor(args.s)) return { ok: false };
 
@@ -88,6 +91,10 @@ export default function (context: Context, args?: unknown) {
 	let state = exec(solve);
 	let calls = 0;
 
+	const debug = typeof args.debug === "boolean" ? args.debug : false;
+	const getDebugLog = () =>
+		getLog(true, debug ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
+
 	if (state.includes("different")) return state;
 	if (state.includes("more than 4")) return state;
 
@@ -96,7 +103,7 @@ export default function (context: Context, args?: unknown) {
 
 		const handler = handlers[lock];
 		if (!handler) {
-			return `no handler for ${lock}\n\n${getLog().join("\n")}\n\n${state}`;
+			return `no handler for ${lock}\n\n${getDebugLog().join("\n")}\n\n${state}`;
 		}
 
 		const { log, stop } = createLogger(`\`N${lock}\``);
@@ -106,7 +113,7 @@ export default function (context: Context, args?: unknown) {
 		while (getCurrentLock(state) === lock) {
 			if (_END - Date.now() < 1200) {
 				stop(`timeout. did ${calls} calls`);
-				return `${getLog().join("\n")}\n\nlast solve: ${JSON.stringify(solve)}`;
+				return `${getDebugLog().join("\n")}\n\nlast solve: ${JSON.stringify(solve)}`;
 			}
 
 			if (isBreached(state)) break;
@@ -115,14 +122,14 @@ export default function (context: Context, args?: unknown) {
 				const iter = gen.next(state);
 				if (iter.done) {
 					stop(`returned ${JSON.stringify(iter.value)}`);
-					return `${getLog().join("\n")}\n\n${state}`;
+					return `${getDebugLog().join("\n")}\n\n${state}`;
 				}
 
 				Object.assign(solve, iter.value, args.p);
 				state = exec(solve);
 			} catch (e) {
 				stop(`threw ${e instanceof Error ? e.message : JSON.stringify(e)}`);
-				return getLog().join("\n");
+				return getDebugLog().join("\n");
 			}
 		}
 
@@ -130,5 +137,5 @@ export default function (context: Context, args?: unknown) {
 		stop(`\`2solved ${lock}\``);
 	}
 
-	return `\`2LOCK_UNLOCKED\`\n\n${getLog().join("\n")}`;
+	return `\`2LOCK_UNLOCKED\`\n\n${getDebugLog().join("\n")}`;
 }

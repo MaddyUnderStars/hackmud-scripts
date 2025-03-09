@@ -3,7 +3,6 @@ import { isRecord } from "/lib/isRecord";
 import { mongoFilter } from "/lib/mongoFilter";
 import { table } from "/lib/table";
 import { fromReadableTime, readableMs } from "/lib/time";
-import { number, object } from "/lib/validation";
 import { walk } from "/lib/walk";
 
 export type MarketListing = {
@@ -135,19 +134,12 @@ export default (context: Context, args: any) => {
 				: [args.sort]
 			: [];
 
-	// const page =
-	// 	isRecord(args) && "page" in args && typeof args.page === "number"
-	// 		? args.page
-	// 		: 0;
-	// const page_size =
-	// 	isRecord(args) && "n" in args && typeof args.n === "number" ? args.n : 50;
-
-	const schema = object({
-		page: number().optional(0),
-		page_size: number().min(0).optional(50)
-	});
-
-	const { page, page_size } = schema.parse(args);
+	const page =
+		isRecord(args) && "page" in args && typeof args.page === "number"
+			? args.page
+			: 0;
+	const page_size =
+		isRecord(args) && "n" in args && typeof args.n === "number" ? args.n : 50;
 
 	const convertFromReadable = (key: string, value: unknown) => {
 		if (

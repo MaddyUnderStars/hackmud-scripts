@@ -8,5 +8,16 @@
 		"patches": true,
 		"LICENSE": true,
 		"player.d.ts": true
-	}
+    },
+    "cSpell.words": [
+        "checkin",
+        "glock",
+        "hackmud",
+        "l0cket",
+        "l0ckjaw",
+        "magnara",
+        "marketwatch",
+        "r3dbox",
+        "xfer"
+    ],
 }

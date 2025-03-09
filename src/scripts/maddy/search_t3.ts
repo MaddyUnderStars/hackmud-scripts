@@ -32,15 +32,15 @@ export default function (context: Context, args?: unknown) {
 		return outputs;
 	}
 
-	const priv = args.s;
+	const priv = args.s as Scriptor;
 
 	if (!args.u || typeof args.u !== "string") {
-		const usernames = $ms.katsu.find_usernames({});
+		const usernames = throwFailure($ms.katsu.find_usernames({})) ?? [];
 
 		for (const username of usernames) {
 			if (!username) continue;
 
-			const ret = $fs.maddy.read({ s: priv, a: { username } });
+			const ret = throwFailure($fs.maddy.read({ s: priv, a: { username } }));
 
 			if (ret.includes("does not exist")) {
 				continue;

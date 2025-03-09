@@ -2,6 +2,7 @@
 import { isRecord } from "/lib/isRecord";
 import { isScriptor } from "/lib/isScriptor";
 
+//@ts-ignore
 const colours = ($db.f({ s: "t1", k: "c" }).array() as { s: "t1", k: "c", a: string; i: number; }[]).sort((a, b) => a.i - b.i);
 
 const set = (obj: unknown) => {
@@ -59,6 +60,7 @@ const handlers = {
             if (((yield) as string).includes("ez_prime")) break;
         }
 
+        //@ts-ignore
         const answers = $db.f({ s: "t1", k: "ez_40" }).array() as { s: "t1", k: "ez_40", a: number; }[];
 
         for (const a of answers) {
@@ -82,6 +84,7 @@ const handlers = {
     },
 
     DATA_CHECK: function* () {
+        //@ts-ignore
         const answers = $db.f({ s: "t1", k: "datacheck" }).array() as { s: "t1", k: "datacheck", q: string, a: string; }[];
 
         set({ DATA_CHECK: "" });
@@ -99,6 +102,7 @@ const handlers = {
     },
 
     l0cket: function* () {
+        //@ts-ignore
         const answers = $db.f({ s: "t1", k: "l0cket" }).array() as { s: "t1", k: "l0cket", a: string; }[];
 
         for (const answer of answers) {
@@ -137,7 +141,7 @@ export default function (context: Context, args?: unknown) {
     let out = args.s.call(passthrough) as string;
     const run = () => {
         const e = (args.s as Scriptor).call(keys);
-        if (typeof e !== "string" && 'msg' in e) out = e.msg as string;
+        if (isRecord(e) && 'msg' in e) out = e.msg as string;
         else out = e as string;
         // $D(`tried ${JSON.stringify(keys)} got\n${JSON.stringify(out)}\n`);
         history.push(Object.assign({}, { keys, out }));
