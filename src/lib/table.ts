@@ -8,25 +8,34 @@ export const table = (cells: string[][], columns: number, padding = 5) => {
 	const columnsInRow = cells[0].length;
 
 	// get the length of longest string in each column
-	const columnSizes = [];
+	// c is coloured text, n is colourless
+	const columnSizes: Array<{ n: number; c: number }> = [];
 
 	// iterate over the columns
 	for (let columnIndex = 0; columnIndex < columnsInRow; columnIndex++) {
 		// then then rows
 		let size = 0;
+		let coloured = 0;
 		for (let rowIndex = 0; rowIndex < cells.length; rowIndex++) {
 			const cell = cells[rowIndex][columnIndex];
 			const colourless = removeColour(cell) ?? "";
-			size = colourless?.length > size ? colourless.length : size;
+			// size = cell?.length > size ? cell.length : size;
+			if (cell?.length > size) {
+				coloured = colourless.length;
+				size = cell.length;
+			}
 		}
 
-		columnSizes.push(size + padding);
+		columnSizes.push({ c: size + padding, n: coloured + padding });
 	}
 
 	// TODO: if columnSizes totals > columns, iteratively reduce until <= columns
-	while (columnSizes.reduce((prev, curr) => prev + curr, 0) > columns) {
-		const i = columnSizes.indexOf(Math.max(...columnSizes));
-		columnSizes[i]--;
+	while (columnSizes.reduce((prev, curr) => prev + curr.n, 0) >= columns + padding) {
+		const i = columnSizes.findIndex(
+			(y) => y.n === Math.max(...columnSizes.map((x) => x.n)),
+		);
+		columnSizes[i].n--;
+		columnSizes[i].c--;
 	}
 
 	let out = "";
@@ -37,11 +46,11 @@ export const table = (cells: string[][], columns: number, padding = 5) => {
 
 			const colourless = removeColour(cell) ?? "";
 
-			const columnSize = columnSizes[columnIndex];
+			const { c: columnSize, n: colourlessSize } = columnSizes[columnIndex];
 
 			const rendered =
 				(cell.split("\n")[0]?.slice(0, columnSize) ?? "") +
-				" ".repeat(Math.max(columnSize - colourless.length, 0));
+				" ".repeat(Math.max(colourlessSize - colourless.length, 0));
 
 			out += rendered;
 		}
