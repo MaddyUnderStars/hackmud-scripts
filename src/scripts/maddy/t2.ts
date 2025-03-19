@@ -63,6 +63,8 @@ const getCurrentLock = (out: string) => {
 };
 
 export default function (context: Context, args?: unknown) {
+    $fs.maddy.whitelist();
+
 	if (!isRecord(args))
 		return {
 			ok: false,

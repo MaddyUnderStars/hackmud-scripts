@@ -1,180 +1,135 @@
-// @autocomplete s: #s.trust.me
+// @autocomplete s: #s.
+
+import { removeColour } from "/lib/colour";
 import { isRecord } from "/lib/isRecord";
 import { isScriptor } from "/lib/isScriptor";
+import { c001 } from "/lib/locks/c001";
+import { c002 } from "/lib/locks/c002";
+import { c003 } from "/lib/locks/c003";
+import { data_check } from "/lib/locks/data_check";
+import { ez_21 } from "/lib/locks/ez_21";
+import { ez_35 } from "/lib/locks/ez_35";
+import { ez_40 } from "/lib/locks/ez_40";
+import { l0cket } from "/lib/locks/l0cket";
+import type { LockSolver } from "/lib/locks/type";
+import { LOG_LEVEL, createLogger, getLog } from "/lib/log";
 
-//@ts-ignore
-const colours = ($db.f({ s: "t1", k: "c" }).array() as { s: "t1", k: "c", a: string; i: number; }[]).sort((a, b) => a.i - b.i);
+const handlers: Record<string, LockSolver> = {};
 
-const set = (obj: unknown) => {
-    Object.assign(keys, obj);
-};
+handlers.l0cket = l0cket;
+handlers.DATA_CHECK = data_check;
+handlers.c001 = c001;
+handlers.c002 = c002;
+handlers.c003 = c003;
+handlers.EZ_21 = ez_21;
+handlers.EZ_35 = ez_35;
+handlers.EZ_40 = ez_40;
 
-const keys = {};
-const handlers = {
-    c002: function* () {
+const isBreached = (out: string) =>
+	out.toLowerCase().includes("connection terminated");
 
-        for (let i = 0; i < colours.length; i++) {
-            set({
-                c002: colours[i].a,
-                c002_complement: colours[(i + 4) % 8].a
-            });
-            yield;
-        }
-    },
-
-    c001: function* () {
-        for (let i = 0; i < colours.length; i++) {
-            set({
-                c001: colours[i].a,
-                color_digit: colours[i].a.length
-            });
-            yield;
-        }
-    },
-
-    c003: function* () {
-        for (let i = 0; i < colours.length; i++) {
-            set({
-                c003: colours[i].a,
-                c003_triad_1: colours[(i + 3) % 8].a,
-                c003_triad_2: colours[(i + 5) % 8].a
-            });
-            yield;
-        }
-    },
-
-    EZ_21: function* () {
-        const words = ["unlock", "open", "release"];
-
-        for (const word of words) {
-            set({ EZ_21: word });
-            yield;
-        }
-    },
-
-    EZ_40: function* () {
-        const words = ["unlock", "open", "release"];
-
-        for (const word of words) {
-            set({ EZ_40: word });
-            if (((yield) as string).includes("ez_prime")) break;
-        }
-
-        //@ts-ignore
-        const answers = $db.f({ s: "t1", k: "ez_40" }).array() as { s: "t1", k: "ez_40", a: number; }[];
-
-        for (const a of answers) {
-            set({ ez_prime: a.a });
-            yield;
-        }
-    },
-
-    EZ_35: function* () {
-        const words = ["unlock", "open", "release"];
-
-        for (const word of words) {
-            set({ EZ_35: word });
-            if (((yield) as string).includes("digit")) break;
-        }
-
-        for (let i = 0; i <= 9; i++) {
-            set({ digit: i });
-            yield;
-        }
-    },
-
-    DATA_CHECK: function* () {
-        //@ts-ignore
-        const answers = $db.f({ s: "t1", k: "datacheck" }).array() as { s: "t1", k: "datacheck", q: string, a: string; }[];
-
-        set({ DATA_CHECK: "" });
-        const input = (yield) as string;
-
-        const ret = input.split("\n").map(x =>
-            answers.find(
-                y => x.toLowerCase().includes(y.q.toLowerCase())
-            )?.a
-        ).join("");
-
-        set({ DATA_CHECK: ret });
-
-        yield;
-    },
-
-    l0cket: function* () {
-        //@ts-ignore
-        const answers = $db.f({ s: "t1", k: "l0cket" }).array() as { s: "t1", k: "l0cket", a: string; }[];
-
-        for (const answer of answers) {
-            set({ l0cket: answer.a });
-            yield;
-        }
-    }
-} as Record<string, (input?: string) => Generator<unknown, unknown, unknown>>;
-
-let lastlock = "";
+let lastLock = "";
 const getCurrentLock = (out: string) => {
-    const lastline = out.split("\n").slice(-1)[0];
-    const lock = lastline.split(" ").slice(-2)[0];
+	const lastLine = out.split("\n").slice(-1)[0];
+	const lock = lastLine.split(" ").slice(-2)[0];
 
-    if (
-        handlers[lock.substring(0, lock.length - 1).substring(2)] ||
-        !lastlock.length
-    ) {
-        lastlock = lock;
-        return lock;
-    }
-    return lastlock;
+	if (out.includes("appropriate k3y")) return "l0ckbox";
+	if (out.includes("l0ckjaw")) return "l0ckjaw";
+
+	if (
+		out.includes("net GC") ||
+		out.includes("transactions") ||
+		(out.includes("large") && out.split("\n").length === 1)
+	)
+		return "acct_nt";
+
+	if (
+		handlers[lock.substring(0, lock.length - 1).substring(2)] ||
+		!lastLock.length
+	)
+		lastLock = removeColour(lock);
+
+	return lastLock;
 };
 
-const isBreached = (out: string) => out.toLowerCase().includes("connection terminated");
+const HELP_TEXT = `maddy.t1 { s: #s.example.loc }\n\nsupported locks:\n${Object.keys(handlers).join("\n")}`;
 
 export default function (context: Context, args?: unknown) {
-    if (!isRecord(args)) return { ok: false, msg: "maddy.t1 { s: #s.example.loc }" };
-    if (!isScriptor(args.s)) return { ok: false };
+    $fs.maddy.analytics({ context, args });
+    
+	if (!isRecord(args))
+		return {
+			ok: false,
+			msg: HELP_TEXT,
+		};
 
-    const passthrough = args.p;
-    set(passthrough);
+	if (!isScriptor(args.s)) return { ok: false, msg: HELP_TEXT };
 
-    const history: { keys: object, out: string; }[] = [];
+	const exec = (p?: unknown) => {
+		const ret = (args.s as Scriptor).call(p);
 
-    let out = args.s.call(passthrough) as string;
-    const run = () => {
-        const e = (args.s as Scriptor).call(keys);
-        if (isRecord(e) && 'msg' in e) out = e.msg as string;
-        else out = e as string;
-        // $D(`tried ${JSON.stringify(keys)} got\n${JSON.stringify(out)}\n`);
-        history.push(Object.assign({}, { keys, out }));
-    };
+		let e: string;
 
-    run();
+		if (typeof ret === "string") e = ret;
+		else if (Array.isArray(ret)) e = ret.join("\n");
+		else if (isRecord(ret) && "msg" in ret && typeof ret.msg === "string")
+			e = ret.msg;
+		else e = JSON.stringify(ret);
 
-    if (!out.includes("LOCK_ERROR")) return out;
+		if (e.includes("anon_self_destruct")) throw new Error("anon_self_destruct");
 
-    let attempts = 0;
-    while (out?.includes("LOCK_ERROR")) {
-        const lock = getCurrentLock(out);
+		return e;
+	};
 
-        attempts++;
-        if (attempts > 20) {
-            return { ok: false, msg: history };
-        }
+	const solve = args.p ? args.p : {};
+	let state = exec(solve);
+	let calls = 0;
 
-        const handler = handlers[lock.substring(0, lock.length - 1).substring(2)];
-        if (!handler) {
-            return { ok: false, msg: history };
-        }
+	const debug = typeof args.debug === "boolean" ? args.debug : false;
+	const getDebugLog = () =>
+		getLog(true, debug ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
 
-        const gen = handler(out);
+	if (state.includes("different")) return state;
+	if (state.includes("more than 4")) return state;
 
-        while (getCurrentLock(out) === lock) {
-            if (isBreached(out)) break;
-            if (gen.next(out).done) {
-                return { ok: false, history };
-            }
-            run();
-        }
-    }
+	while (!isBreached(state)) {
+		const lock = getCurrentLock(state);
 
-    return { ok: true };
+		const handler = handlers[lock];
+		if (!handler) {
+			return `no handler for ${lock}\n\n${getDebugLog().join("\n")}\n\n${state}`;
+		}
+
+		const { log, stop } = createLogger(`\`N${lock}\``);
+		calls = 0;
+		const gen = handler(context, log);
+
+		while (getCurrentLock(state) === lock) {
+			if (_END - Date.now() < 1200) {
+				stop(`timeout. did ${calls} calls`);
+				return `${getDebugLog().join("\n")}\n\nlast solve: ${JSON.stringify(solve)}`;
+			}
+
+			if (isBreached(state)) break;
+			try {
+				calls++;
+				const iter = gen.next(state);
+				if (iter.done) {
+					stop(`returned ${JSON.stringify(iter.value)}`);
+					return `${getDebugLog().join("\n")}\n\n${state}`;
+				}
+
+				Object.assign(solve, iter.value, args.p);
+				state = exec(solve);
+			} catch (e) {
+				stop(`threw ${e instanceof Error ? e.message : JSON.stringify(e)}`);
+				return getDebugLog().join("\n");
+			}
+		}
+
+		gen.return(state);
+		stop(`\`2solved ${lock}\``);
+	}
+
+	return `\`2LOCK_UNLOCKED\`\n\n${getDebugLog().join("\n")}`;
 }

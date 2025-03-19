@@ -4,6 +4,8 @@ import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 
 export default function (context: Context, args?: unknown) {
+    $fs.maddy.whitelist();
+
 	if (!args || !isRecord(args)) return;
 
 	if ("backup" in args && args.backup) {

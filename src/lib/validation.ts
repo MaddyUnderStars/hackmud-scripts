@@ -1,15 +1,18 @@
 import { isFailure } from "./failure";
 import { isRecord } from "./isRecord";
 import { isScriptor } from "./isScriptor";
+import { fromReadableTime } from "./time";
 
-type RawShape = Record<string, Type<unknown>>;
+// biome-ignore lint/suspicious/noExplicitAny: awful sadness
+type RawShape = Record<string, Type<any>>;
 type BaseObjectOutputType<Shape extends RawShape> = {
 	[k in keyof Shape]: Shape[k] extends Type<infer X> ? X : never;
 };
 
 interface Type<T> {
 	parse: (x: unknown) => T;
-	// optional: (fallback?: T | undefined) => Type<T | undefined>;
+	refine: (func: (data: T) => boolean, message?: string) => Type<T>;
+	optional: (fallback?: T | undefined) => Type<T | undefined>;
 	array: () => Type<T[]>;
 }
 
@@ -20,11 +23,19 @@ class ValidationError extends Error {
 const parser = <T>(check: (data: unknown) => T): Type<T> => {
 	return {
 		parse: check,
-		// optional: (fallback?: T | undefined) =>
-		// 	parser<T | undefined>((data) => {
-		// 		if (!data && fallback) return fallback;
-		// 		return check(data);
-		// 	}),
+		refine: (func, message) =>
+			parser<T>((data) => {
+				const ret = check(data);
+				if (!func(ret))
+					throw new ValidationError(message ?? `${data} failed refinement`);
+				return ret;
+			}),
+		optional: (fallback?: T | undefined) =>
+			parser<T | undefined>((data) => {
+				if (!data && fallback) return fallback;
+				if (!data) return undefined;
+				return check(data);
+			}),
 		array: () =>
 			parser((data) => {
 				if (!Array.isArray(data))
@@ -59,10 +70,10 @@ const _number = (check: (data: unknown) => number): NumberType => {
 	};
 };
 
-const number = (): NumberType => {
+const number = (message?: string): NumberType => {
 	const check = (data: unknown) => {
 		if (typeof data !== "number")
-			throw new ValidationError(`'${data}' is not number`);
+			throw new ValidationError(message ?? `'${data}' is not number`);
 
 		return data;
 	};
@@ -70,10 +81,10 @@ const number = (): NumberType => {
 	return _number(check);
 };
 
-const string = (): Type<string> =>
+const string = (message?: string): Type<string> =>
 	parser((data) => {
 		if (typeof data !== "string")
-			throw new ValidationError(`'${data}' is not string`);
+			throw new ValidationError(message ?? `'${data}' is not string`);
 
 		return data;
 	});
@@ -83,6 +94,17 @@ const undef = (): Type<undefined> =>
 		if (data === undefined) return data;
 
 		throw new ValidationError(`${data} is not undefined`);
+	});
+
+const readableTime = (message?: string): Type<number> =>
+	parser((data) => {
+		const error_msg = message ?? `${data} is not a valid readable time string`;
+
+		if (typeof data !== "string") throw new ValidationError(error_msg);
+
+		const ret = fromReadableTime(data);
+
+		return ret;
 	});
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
@@ -103,10 +125,10 @@ const SECNAMES = {
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-const scriptor = <T extends any[]>(): ScriptorType<T> => {
+const scriptor = <T extends any[]>(message?: string): ScriptorType<T> => {
 	const check = (data: unknown) => {
 		if (!isScriptor(data))
-			throw new ValidationError(`${data} is not a scriptor`);
+			throw new ValidationError(message ?? `${data} is not a scriptor`);
 		return data;
 	};
 
@@ -144,5 +166,12 @@ const object = <T extends RawShape>(inner: T): Type<BaseObjectOutputType<T>> =>
 		return ret as BaseObjectOutputType<T>;
 	});
 
-export { number, object, scriptor, string, undef };
+const cliContext = object({
+	caller: string(),
+	this_script: string(),
+	cols: number(),
+	rows: number(),
+});
+
+export { cliContext, number, object, readableTime, scriptor, string, undef };
 

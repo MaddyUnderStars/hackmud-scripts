@@ -7,6 +7,8 @@ const exec = (scriptor: Scriptor, args?: unknown) => {
 };
 
 export default function (context: Context, args?: unknown) {
+    $fs.maddy.analytics({ context, args });
+    
 	if (!isRecord(args) || !isScriptor(args.s))
 		return { ok: false, msg: "maddy.search_t1 { s: #s.corp.script }" };
 

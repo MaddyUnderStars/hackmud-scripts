@@ -48,6 +48,8 @@ const allSectors = (e: number) => {
 };
 
 export default (context: Context, args?: unknown) => {
+    $fs.maddy.analytics({ context, args });
+    
 	if (!isRecord(args)) return HELP_TEXT;
 
 	const page = "page" in args && typeof args.page === "number" ? args.page : 0;

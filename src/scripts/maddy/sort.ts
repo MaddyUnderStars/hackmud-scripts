@@ -1,6 +1,8 @@
 import { throwFailure } from "/lib/failure";
 
 export default (context: Context, args?: unknown) => {
+    $fs.maddy.analytics({ context, args });
+    
 	// swap and extend as needed
 	const lockPriority = [
 		"CON_TELL",

@@ -1,6 +1,8 @@
 import { table } from "/lib/table";
 
-export default (context: Context) => {
+export default (context: Context, args: unknown) => {
+    $fs.maddy.analytics({ context, args });
+
     const header = `                  :                                                                       
        %#%@*%=%@%=*++-*%%  %@. %*  #%+                                                    
       %:%% %%% .*@%%@%=. -@- %%   %=        +%                                            

@@ -1,7 +1,7 @@
 {
 	"name": "hackmud-environment",
 	"license": "MIT",
-    "type": "module",
+	"type": "module",
 	"scripts": {
 		"push": "hsm push src/scripts --dts-path=player.d.ts --root-folder-path=src",
 		"dev": "hsm push src/scripts --dts-path=player.d.ts --root-folder-path=src --watch",

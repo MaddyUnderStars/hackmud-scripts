@@ -1,4 +1,5 @@
 import type { MarketListing } from "../maddy/market";
+import { histogram } from "/lib/chart";
 import { throwFailure } from "/lib/failure";
 import { groupBy } from "/lib/groupBy";
 import { isRecord } from "/lib/isRecord";
@@ -61,31 +62,52 @@ export default (context: Context, args?: unknown) => {
 		return { additions: additions.length, sold: deletions.length };
 	}
 
-	const lastweek = new Date();
-	lastweek.setDate(lastweek.getDate() - 7);
+	const lastWeek = new Date();
+	lastWeek.setDate(lastWeek.getDate() - 7);
 
+	let expiredCount = 0;
 	const records = $db
 		.f({
 			_id: { $regex: "market_watch", $type: "string" },
+			_removed: { $gt: lastWeek },
 		})
-		.array();
+		.array()
+		.filter((x) => {
+			const date = new Date(x._date as Date);
+			const removed = new Date(x._removed as Date);
 
-	const soldGrouped = groupBy(
+			if (!date || !removed) return false;
+
+			date.setMonth(date.getMonth() + 1);
+			const ret = removed.valueOf() < date.valueOf();
+			expiredCount += ret ? 0 : 1;
+			return ret;
+		});
+
+	const soldGroupedDay = groupBy(
+		records.filter((x) => x._removed),
+		(v) => `${(v._removed as Date).toDateString()}`, //`\`${v.rarity}${v.name}\``,
+	);
+
+	const soldGroupedName = groupBy(
 		records.filter((x) => x._removed),
 		(v) => `\`${v.rarity}${v.name}\``,
 	);
 
 	let ret = "";
 
-	const lastsold = records
+	ret +=
+		expiredCount > 0 ? `Excluding ${expiredCount} destroyed listings\n\n` : "";
+
+	const lastSold = records
 		.filter((x) => x._removed)
 		.sort(
 			(a, b) => (b._removed as Date).valueOf() - (a._removed as Date).valueOf(),
 		)[0];
 
 	const lib = $fs.scripts.lib();
-	ret += lastsold
-		? `Last sold: \`${lastsold.rarity}${lastsold.name}\` for ${lib.to_gc_str(lastsold._price as number)}\n`
+	ret += lastSold
+		? `Last sold: \`${lastSold.rarity}${lastSold.name}\` for ${lib.to_gc_str(lastSold._price as number)}\n\n`
 		: "";
 
 	ret += "Sold in last week\n";
@@ -94,11 +116,21 @@ export default (context: Context, args?: unknown) => {
 		[
 			["name", "count"],
 			[],
-			...Object.entries(soldGrouped).map(([key, value]) => [
+			...Object.entries(soldGroupedName).map(([key, value]) => [
 				key,
 				`${value.length}`,
 			]),
 		],
+		context.cols,
+	);
+
+	ret += "\n\n";
+
+	ret += histogram(
+		Object.entries(soldGroupedDay).map(([key, value]) => ({
+			value: value.length,
+			label: key,
+		})),
 		context.cols,
 	);
 

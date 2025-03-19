@@ -1,6 +1,8 @@
 import { table } from "/lib/table";
 
 export default function (context: Context, args?: unknown) {
+    $fs.maddy.analytics({ context, args });
+    
     const lastRan = args
         ? undefined
         : $db.f({ _id: `sys_log_${context.caller}` }).first()?.t;

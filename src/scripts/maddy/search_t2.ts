@@ -13,6 +13,8 @@ const HELP_TEXT =
 	"t2 loc scraper. pass corp scriptor as `Ns`\ncheck out maddy.corps { tier: 2 } for corp scripts.";
 
 export default function (context: Context, args?: unknown) {
+    $fs.maddy.analytics({ context, args });
+    
 	if (!isRecord(args) || !isScriptor(args.s)) return HELP_TEXT;
 
 	const usernames = $fs.katsu.find_usernames({}) as string[];

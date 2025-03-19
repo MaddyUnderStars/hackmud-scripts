@@ -31,7 +31,7 @@ export const readableMs = (ms: number, units = 62) => {
 
 const timeRegex = /(\d*d)?\s?(\d*h)?\s?(\d*m)?\s?(\d*s)?\s?(\d*ms)?/;
 export const fromReadableTime = (str: string) => {
-	const match = str.match(timeRegex);
+	const match = str.toLowerCase().match(timeRegex);
 	if (!match) throw new Error(`${str} is not a valid human readable timestamp`);
 
 	const d = match.find((x) => x?.includes("d"));

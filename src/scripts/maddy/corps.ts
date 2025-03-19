@@ -55,6 +55,8 @@ const tierToSec = {
 } as Record<number, string[]>;
 
 export default (context: Context, args?: unknown) => {
+    $fs.maddy.analytics({ context, args });
+    
 	if (
 		!isRecord(args) ||
 		!args.tier ||

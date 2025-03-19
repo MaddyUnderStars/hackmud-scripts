@@ -67,6 +67,8 @@ const preferredSortDir = {
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export default (context: Context, args: any) => {
+	$fs.maddy.analytics({ context, args });
+
 	if (!args) {
 		const args_table = table(
 			[
@@ -276,7 +278,7 @@ export default (context: Context, args: any) => {
 				)
 			: [];
 
-	const more = market_size - fetched.length;
+	const more = market_size - page_size > 0;
 
 	let ret = table(
 		[
@@ -291,7 +293,11 @@ export default (context: Context, args: any) => {
 			],
 			[],
 			...fetched
-				.slice(page_size * page, page_size * (page + 1))
+				.slice(
+					// don't like this, oh well
+					fetched.length > page_size ? page_size * page : undefined,
+					fetched.length > page_size ? page_size * (page + 1) : undefined,
+				)
 				.map((listing, index) => [
 					`${listing.i}`,
 					lib.to_gc_str(listing.cost),
@@ -325,10 +331,10 @@ export default (context: Context, args: any) => {
 	);
 
 	if (more) {
-		const lastPage = Math.floor(market.length / page_size);
-		if (lastPage >= page) ret += `\nnext page: ${page + 1}`;
-		ret += `\nlast page: ${Math.floor(market.length / page_size)}`;
-		ret += `\ntotal listings: ${market.length}`;
+		const lastPage = Math.floor(market_size / page_size);
+		if (lastPage > page) ret += `\nnext page: ${page + 1}`;
+		ret += `\nlast page: ${lastPage}`;
+		ret += `\ntotal listings: ${market_size}`;
 	}
 
 	if (market_size !== fetched.length && sort.length)
