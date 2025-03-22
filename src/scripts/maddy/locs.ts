@@ -1,9 +1,6 @@
 import { isFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 
-const LOC_REGEX =
-	/[a-z_0-9]*\.(?:access|entry|extern|external|info|out|p|pub|pubinfo|pub_info|public)_[a-z0-9]{6}$/gm;
-
 export default (
 	context: Context,
 	args?: unknown,
@@ -13,10 +10,10 @@ export default (
 	if (!args || !isRecord(args))
 		return {
 			ok: true,
-			msg: `${$db.f({ _id: { $regex: "loc" } }).count()} locs in db\nuse {} for all locs.\nuse \`Nuser\`: \`Vstring\` to get user loc\npass space delimited string to add locs`,
+			msg: `${$db.f({ _id: { $regex: "loc" } }).count()} locs in db\nuse {} for all locs.\nuse \`Nuser\`: \`Vstring\` to get user loc\n\`Nrecent\`: \`Vtrue\` to get the most recently added locs\npass space delimited string to add locs`,
 		};
 
-	if (!Object.keys(args).length)
+	if (!Object.keys(args).length) {
 		return {
 			ok: true,
 			msg: $db
@@ -25,13 +22,39 @@ export default (
 				.map((x) => x.loc)
 				.join("\n"),
 		};
+	}
 
 	if (typeof args.user === "string") {
 		const found = $db
-			.f({ _id: { $regex: `loc_${args.user}` }, loc: { $type: "string" } })
+			.f({
+				_id: { $regex: `loc_${args.user}` },
+				loc: { $type: "string" },
+				user: { $type: "string" },
+			})
 			.first();
 		if (!found) return { ok: false };
-		return { ok: true, msg: found.loc };
+
+		const activity = $fs.users.last_action({ name: found.user })[0];
+
+		if (context.calling_script) return { ok: true, msg: found.loc };
+        
+		return { ok: true, msg: `${found.loc} - ${activity?.t?.toUTCString()}` };
+	}
+
+	if (args.recent === true) {
+		return {
+			ok: true,
+			msg: $db
+				.f({
+					_id: { $regex: "loc" },
+					loc: { $type: "string" },
+				})
+				.sort({ date: -1 })
+				.limit(20)
+				.array()
+				.map((x) => x.loc)
+				.join("\n"),
+		};
 	}
 
 	if ("input" in args && typeof args.input === "string") {

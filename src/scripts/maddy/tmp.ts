@@ -1,14 +1,23 @@
-import { histogram } from "/lib/chart";
+import { throwFailure } from "/lib/failure";
 
 export default function (context: Context, args?: unknown) {
-	return histogram(
-		[
-			{ value: 1, label: "hello" },
-			{ value: 5, label: "how" },
-			{ value: 4, label: "are" },
-			{ value: 7, label: "you" },
-			{ value: 10, label: "today" },
-		],
-		context.cols,
-	);
+	const usernames = $fs.katsu.find_usernames({}) as string[];
+
+    let ret = "";
+	for (const username of usernames) {
+		const out = throwFailure(
+			$fs.maddy.read({
+				s: {
+					call: () =>
+						$fs.archaic.public({ cmd: "public_profiles", user: username }),
+					name: "archaic.public",
+				},
+			}),
+		);
+
+		if (out.includes("Welcome")) continue;
+        ret += out;
+	}
+
+    return ret;
 }

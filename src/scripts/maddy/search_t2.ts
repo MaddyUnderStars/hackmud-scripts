@@ -13,8 +13,8 @@ const HELP_TEXT =
 	"t2 loc scraper. pass corp scriptor as `Ns`\ncheck out maddy.corps { tier: 2 } for corp scripts.";
 
 export default function (context: Context, args?: unknown) {
-    $fs.maddy.analytics({ context, args });
-    
+	$fs.maddy.analytics({ context, args });
+
 	if (!isRecord(args) || !isScriptor(args.s)) return HELP_TEXT;
 
 	const usernames = $fs.katsu.find_usernames({}) as string[];
@@ -55,8 +55,8 @@ export default function (context: Context, args?: unknown) {
 		// does not exist, no codes on this username
 		if (typeof codes === "string") continue;
 
-        // shifting, typically
-        if (isFailure(codes)) return codes.msg;
+		// shifting, typically
+		if (isFailure(codes)) return codes.msg;
 
 		for (const code of codes) {
 			if (_END - Date.now() < 1000) {
@@ -113,8 +113,6 @@ export default function (context: Context, args?: unknown) {
 			);
 		}
 	}
-
-	$fs.maddy.locs;
 
 	return `${npc_locs.join("\n")}\n\n${player_locs.join("\n")}${timeout ? `\n\ndid not finish scrape. pass i: ${i} to continue` : ""}`;
 }

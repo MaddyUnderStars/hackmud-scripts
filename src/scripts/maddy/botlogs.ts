@@ -11,8 +11,6 @@ export default (context: Context, args?: unknown) => {
 	const users = ["squizzy", "katsu", "oscilio", "arakni", "enigma"];
 
 	if (isRecord(args) && typeof args.user === "string") {
-		const lib = $fs.scripts.lib();
-
 		const logs = $db
 			.f({
 				_id: { $regex: `botnet_log_${args.user}` },
@@ -64,9 +62,16 @@ export default (context: Context, args?: unknown) => {
 			.array(),
 	);
 
-	return `Botnet health\n\nactive jobs: ${Object.keys(jobs).join(", ")}\n\n${table(
+	return `Botnet health (as of ${_BUILD_DATE})\n\nactive jobs: ${Object.keys(jobs).join(", ")}\n\n${table(
 		[
-			["user", "status", "last check-in", "runtime", ""],
+			[
+				"user",
+				"status",
+				"last check-in",
+				"remaining runtime",
+				"active jobs",
+				"",
+			],
 			[],
 			...checkins.map((x) => {
 				const name = x._id.split("_").slice(-1)[0];
@@ -76,6 +81,10 @@ export default (context: Context, args?: unknown) => {
 					x.breached ? "`DBREACHED`" : "`LSafe`",
 					readableMs(Date.now() - x.date.valueOf()),
 					readableMs(_TIMEOUT - x.remaining),
+					Object.entries(jobs)
+						.filter(([key, x]) => x.users?.includes(name))
+						.map(([key]) => key)
+						.join(", "),
 					(x.brain.cooldown as number) < (Date.now() - x.date.valueOf()) / 1000
 						? "`DMISSED CHECK-IN`"
 						: "",

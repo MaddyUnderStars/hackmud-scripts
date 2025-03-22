@@ -66,6 +66,8 @@ export default (context: Context, args?: unknown) => {
 				)}`;
 		}
 
+		const script_owner = q.includes(".") ? q.split(".")[0] : q;
+
 		if (show === "users") {
 			return `Showing all users of ${q}\n\n${$fs.scripts.lib().columnize(
 				$db
@@ -97,9 +99,15 @@ export default (context: Context, args?: unknown) => {
 					...(after ? { $gt: new Date(Date.now() - after) } : { $gt: weekAgo }),
 					...(before ? { $lt: new Date(Date.now() - before) } : {}),
 				},
-				caller: user ? user : { $exists: true },
+				caller: user ? user : { $ne: script_owner },
 			})
-			.array();
+			.array()
+			.filter((x) => {
+				if (x.custom)
+					//@ts-ignore
+					return !x.custom.context.calling_script?.includes(script_owner);
+				return true;
+			});
 
 		const grouped = groupBy(
 			data.sort(

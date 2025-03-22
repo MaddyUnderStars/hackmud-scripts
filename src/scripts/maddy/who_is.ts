@@ -6,6 +6,14 @@ const exists = (name: string) => {
 	return !!last_action;
 };
 
+const getAlts = (name: string) => {
+	return $db
+		.f({
+			redirect: name,
+		})
+		.distinct("_id");
+};
+
 const lookup = (name: string) => {
 	const entry = $db
 		.f({
@@ -59,12 +67,15 @@ export default (context: Context, args?: unknown) => {
 		const entry = lookup(args.input);
 		if (!entry) return { ok: false };
 
+		const alts = getAlts(args.input);
+
 		const metaKeys = Object.keys(entry).filter((x) => x !== "_id");
 		const name = entry._id.replace("who_is_", "");
 		//@ts-ignore
 		// biome-ignore lint/performance/noDelete: <explanation>
 		delete entry._id;
-		return table(
+
+		let ret = table(
 			[
 				["user", ...metaKeys],
 				[],
@@ -78,5 +89,9 @@ export default (context: Context, args?: unknown) => {
 			],
 			context.cols,
 		);
+
+		ret += `\n\nalts:\n${$fs.scripts.lib().columnize(alts.map((x) => x.toString().replaceAll("who_is_", "")))}`;
+
+        return ret;
 	}
 };

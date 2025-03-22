@@ -45,6 +45,8 @@ export default (context: Context, args?: unknown) => {
 		// if in risk of timeout, return
 		if (_END - Date.now() < 500) return;
 
+        if (job.users && !job.users.includes(context.caller)) continue;
+
 		// create new job log
 		const start = new Date();
 		const logId = makeBotnetLogId(context.caller, name);
