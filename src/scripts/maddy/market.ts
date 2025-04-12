@@ -1,8 +1,10 @@
+import { wrapCatch } from "/lib/catch";
 import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { mongoFilter } from "/lib/mongoFilter";
 import { table } from "/lib/table";
 import { fromReadableTime, readableMs } from "/lib/time";
+import * as v from "/lib/validation";
 import { walk } from "/lib/walk";
 
 export type MarketListing = {
@@ -66,7 +68,7 @@ const preferredSortDir = {
 } as Record<string, number>;
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-export default (context: Context, args: any) => {
+export default (context: Context, args: any) => wrapCatch(() => {
 	$fs.maddy.analytics({ context, args });
 
 	if (!args) {
@@ -104,7 +106,7 @@ export default (context: Context, args: any) => {
 			"- Sorting for any property, including cron_bot 'cost' (renamed: 'price')\n" +
 			"- Querying with mongo filters for any property including cron price\n" +
 			"- Human readable outputs for cooldowns, gc amounts, etc\n" +
-			'- Human readable *queries*, e.g. max_glock_amnt: { "gt": "1MGC" }\n' +
+			'- Human readable *queries*, e.g. max_glock_amnt: { "$gt": "1MGC" }\n' +
 			"- Query for k3y's using 3 letter k3y codes\n" +
 			'- Support for `N[key]`: `Vnull` like in sys.upgrades. Shorthand for { `N[key]`: { `N"$exists"`: `Vtrue` } }\n\n' +
 			args_table +
@@ -117,31 +119,12 @@ export default (context: Context, args: any) => {
 
 	const lib = $fs.scripts.lib();
 
-	const sort_dir =
-		isRecord(args) &&
-		"sort_dir" in args &&
-		typeof args.sort_dir === "number" &&
-		(args.sort_dir === 1 || args.sort_dir === -1)
-			? args.sort_dir
-			: undefined;
-
-	const sort: string[] =
-		isRecord(args) &&
-		"sort" in args &&
-		(typeof args.sort === "string" ||
-			(Array.isArray(args.sort) &&
-				args.sort.every((a: unknown) => typeof a === "string")))
-			? Array.isArray(args.sort)
-				? args.sort
-				: [args.sort]
-			: [];
-
-	const page =
-		isRecord(args) && "page" in args && typeof args.page === "number"
-			? args.page
-			: 0;
-	const page_size =
-		isRecord(args) && "n" in args && typeof args.n === "number" ? args.n : 50;
+	const { sort_dir, sort, page, page_size } = v.object({
+		sort_dir: v.number().refine(d => d === -1 || d === 1).optional(),
+		sort: v.string().array().or(v.string().map(d => ([d]))).optional([]),
+		page: v.number().min(0).optional(0),
+		page_size: v.number().min(1).optional(50),
+	}).parse(args);
 
 	const convertFromReadable = (key: string, value: unknown) => {
 		if (
@@ -176,6 +159,8 @@ export default (context: Context, args: any) => {
 	delete args.sort;
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.sort_dir;
+	// biome-ignore lint/performance/noDelete: <explanation>
+	delete args.page_size;
 	// biome-ignore lint/performance/noDelete: <explanation>
 	delete args.page;
 	// biome-ignore lint/performance/noDelete: <explanation>
@@ -274,8 +259,8 @@ export default (context: Context, args: any) => {
 	const includedStats =
 		new Set(fetched.map((x) => x.upgrade.name.replace(/_v./, ""))).size === 1
 			? UPGRADE_STATS.filter((x) =>
-					fetched.find((listing) => Object.keys(listing.upgrade).includes(x)),
-				)
+				fetched.find((listing) => Object.keys(listing.upgrade).includes(x)),
+			)
 			: [];
 
 	const more = market_size - page_size > 0;
@@ -288,6 +273,7 @@ export default (context: Context, args: any) => {
 				"name",
 				"seller",
 				"type",
+				"#",
 				includedStats.length ? "|" : "",
 				...includedStats,
 			],
@@ -304,6 +290,7 @@ export default (context: Context, args: any) => {
 					`\`${listing.upgrade.rarity}${listing.upgrade.name}\``,
 					listing.seller,
 					listing.upgrade.type,
+					`${listing.count}`,
 
 					includedStats.length ? "|" : "",
 
@@ -342,4 +329,4 @@ export default (context: Context, args: any) => {
 			"\n\nwarning: too many listings, sort may be inaccurate. try refining your query.";
 
 	return ret;
-};
+});

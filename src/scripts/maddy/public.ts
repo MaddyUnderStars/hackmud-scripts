@@ -38,6 +38,7 @@ export default (context: Context, args: unknown) => {
             ["`2FS`", "maddy.search_t2", "Actually not bad t2 corp loc search"],
             ["`2FS`", "maddy.market", "Market listings viewer"],
             ["`2FS`", "maddy.analytics", "Script analytics collection and viewer"],
+            ["`2FS`", "maddy.v", "zod-like type validator"],
             [],
             ["`HMS`", "maddy.scripts", "Public scripts viewer. MS due to chats join/leave"],
             ["`HMS`", "maddy.corps", "Search for corp scripts. MS due to maddy.scripts usage"],

@@ -3,75 +3,82 @@
 import { isRecord } from "/lib/isRecord";
 import { isScriptor } from "/lib/isScriptor";
 
-export default function (context: Context, args?: unknown): string | ScriptFailure {
+export default function (
+    context: Context,
+    args?: unknown,
+): string | ScriptFailure {
     $fs.maddy.analytics({ context, args });
-    
-	if (!isRecord(args) || !isScriptor(args.s))
-		return {
-			ok: false,
-			msg: "maddy.read { s: #s.trust.public_corp, a: { passthrough }, timings?: true }",
-		};
 
-	const passthrough = args.a;
+    if (!isRecord(args) || !isScriptor(args.s))
+        return {
+            ok: false,
+            msg:
+                "maddy.read { s: #s.trust.public_corp, a: { passthrough }, timings?: true }\n\n" +
+                "useful macros:\n" +
+                "/r = maddy.read {{ s:#s.{0}, a: {$} }}\n" +
+                "/rr = maddy.read {{ s:#s.{0} }}",
+        };
 
-	const chars = $fs.scripts.lib().corruption_chars;
+    const passthrough = args.a;
 
-	const ignored: number[] = [];
+    const chars = $fs.scripts.lib().corruption_chars;
 
-	let attempts = 0;
-	let ret = "";
-	const timings = [];
-	do {
-		if (_END - Date.now() < 500) break;
+    const ignored: number[] = [];
 
-		const start = Date.now();
-		const corruptedOutput = args.s.call(passthrough);
-		let iter: string;
-		if (typeof corruptedOutput === "string") iter = corruptedOutput;
-		else if (
-			isRecord(corruptedOutput) &&
-			"msg" in corruptedOutput &&
-			typeof corruptedOutput.msg === "string"
-		)
-			iter = corruptedOutput.msg;
-		else if (Array.isArray(corruptedOutput)) iter = corruptedOutput.join("\n");
-		else return { ok: false, msg: "failed" };
+    let attempts = 0;
+    let ret = "";
+    const timings = [];
+    do {
+        if (_END - Date.now() < 500) break;
 
-		iter = iter.replaceAll(
-			/\`[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ](.*?)\`/g,
-			(s, ...args) => {
-				if (chars.includes(args[0])) return args[0];
+        const start = Date.now();
+        const corruptedOutput = args.s.call(passthrough);
+        let iter: string;
+        if (typeof corruptedOutput === "string") iter = corruptedOutput;
+        else if (
+            isRecord(corruptedOutput) &&
+            "msg" in corruptedOutput &&
+            typeof corruptedOutput.msg === "string"
+        )
+            iter = corruptedOutput.msg;
+        else if (Array.isArray(corruptedOutput)) iter = corruptedOutput.join("\n");
+        else return { ok: false, msg: "failed" };
 
-				return s;
-			},
-		);
+        iter = iter.replaceAll(
+            /\`[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ](.*?)\`/g,
+            (s, ...args) => {
+                if (chars.includes(args[0])) return args[0];
 
-		if (ret === "") ret = iter;
+                return s;
+            },
+        );
 
-		ret = ret
-			.split("")
-			.map((char, i) => {
-				if (!chars.includes(char) || ignored.includes(i)) return char;
+        if (ret === "") ret = iter;
 
-				if (attempts > 0 && char === iter[i]) {
-					ignored.push(i);
-				}
+        ret = ret
+            .split("")
+            .map((char, i) => {
+                if (!chars.includes(char) || ignored.includes(i)) return char;
 
-				return iter[i];
-			})
-			.join("");
+                if (attempts > 0 && char === iter[i]) {
+                    ignored.push(i);
+                }
 
-		attempts++;
+                return iter[i];
+            })
+            .join("");
 
-		timings.push(Date.now() - start);
-	} while (
-		chars
-			.split("")
-			.find((x) => ret.includes(x) && !ignored.includes(ret.indexOf(x)))
-	);
+        attempts++;
 
-	if (args.timings)
-		return `${ret}\n\navg ${timings.length === 1 ? timings[0] : timings.reduce((prev, curr) => prev + curr) / (timings.length - 1)}ms. calls: ${attempts}. ignored_indexes: ${JSON.stringify(ignored)}`;
+        timings.push(Date.now() - start);
+    } while (
+        chars
+            .split("")
+            .find((x) => ret.includes(x) && !ignored.includes(ret.indexOf(x)))
+    );
 
-	return ret;
+    if (args.timings)
+        return `${ret}\n\navg ${timings.length === 1 ? timings[0] : timings.reduce((prev, curr) => prev + curr) / (timings.length - 1)}ms. calls: ${attempts}. ignored_indexes: ${JSON.stringify(ignored)}`;
+
+    return ret;
 }

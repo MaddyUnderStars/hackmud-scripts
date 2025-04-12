@@ -31,13 +31,20 @@
         "midsec",
         "nullsec",
         "oscilio",
+        "PUBLICS",
         "r3dbox",
         "seccheck",
         "seclevel",
+        "SECLEVELS",
         "SECNAMES",
         "squizzy",
         "uzuri",
         "verdance",
         "xfer"
+    ],
+    "cSpell.ignoreWords": [
+        "Nlevel",
+        "Npage",
+        "Vnumber"
     ],
 }

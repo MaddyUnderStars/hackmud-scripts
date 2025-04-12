@@ -92,7 +92,7 @@ export default function (
 		locs.push(
 			...curr
 				.split("\n")
-				.filter((x) => x.match(/[A-Za-z_\d]+?\.[A-Za-z_\d]+?$/gim)),
+				.filter((x) => x.match(/^[A-Za-z_\d]+?\.[A-Za-z_\d]+?$/gim)),
 		);
 	}
 
@@ -100,7 +100,7 @@ export default function (
 		if (
 			loc &&
 			!loc.match(NPC_LOC_REGEX) &&
-			loc.match(/[A-Za-z_\d]+?\.[A-Za-z_\d]+?$/gim) &&
+			loc.match(/^[A-Za-z_\d]+?\.[A-Za-z_\d]+?$/gim) &&
 			!"¡¢Á¤Ã¦§¨©ª".split("").find((x) => loc.includes(x))
 		) {
 			$db.us(

@@ -27,7 +27,7 @@ export default (
 	if (typeof args.user === "string") {
 		const found = $db
 			.f({
-				_id: { $regex: `loc_${args.user}` },
+				_id: { $regex: `loc_${args.user}\\.` },
 				loc: { $type: "string" },
 				user: { $type: "string" },
 			})

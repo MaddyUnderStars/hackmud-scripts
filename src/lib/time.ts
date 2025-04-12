@@ -1,4 +1,4 @@
-import { padStart } from "./padStartColor";
+import { padStart } from "./padStartColor.js";
 
 /**
  * Renders ms as human readable strings

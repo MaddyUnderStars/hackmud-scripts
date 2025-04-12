@@ -2,23 +2,24 @@
 
 import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
+// import { number, object, string } from "/lib/validation";
 
 const SECLEVELS = {
-	f: 0,
-	h: 1,
+	f: 4,
+	h: 3,
 	m: 2,
-	l: 3,
-	n: 4,
-	fullsec: 0,
-	highsec: 1,
+	l: 1,
+	n: 0,
+	fullsec: 4,
+	highsec: 3,
 	midsec: 2,
-	lowsec: 3,
-	nullsec: 4,
-	full: 0,
-	high: 1,
+	lowsec: 1,
+	nullsec: 0,
+	full: 4,
+	high: 3,
 	mid: 2,
-	low: 3,
-	null: 4,
+	low: 1,
+	null: 0,
 	"0": 0,
 	"1": 1,
 	"2": 2,
@@ -26,19 +27,19 @@ const SECLEVELS = {
 	"4": 4,
 } as Record<string, number>;
 
-const HELP_TEXT = `public scripts helper.\nmaddy.scripts { level: number|string, page?: number }\n\nlevel can be any of:\n- ${[0, 1, 2, 3, 4, ...Object.keys(SECLEVELS)].map((x) => JSON.stringify(x)).join("\n- ")}`;
+const HELP_TEXT = `public scripts helper.\nmaddy.scripts { \`Nlevel\`: \`Vnumber|string\`, \`Npage?\`: \`Vnumber\` }\n\n\`Nlevel\` can be any of:\n- ${[0, 1, 2, 3, 4, ...Object.keys(SECLEVELS)].map((x) => `\`V${JSON.stringify(x)}\``).join("\n- ")}`;
 
 const PUBLICS = [
 	(sector?: string) =>
-		sector ? $fs.scripts.fullsec({ sector }) : $fs.scripts.fullsec(),
-	(sector?: string) =>
-		sector ? $fs.scripts.highsec({ sector }) : $fs.scripts.highsec(),
-	(sector?: string) =>
-		sector ? $fs.scripts.midsec({ sector }) : $fs.scripts.midsec(),
+		sector ? $fs.scripts.nullsec({ sector }) : $fs.scripts.nullsec(),
 	(sector?: string) =>
 		sector ? $fs.scripts.lowsec({ sector }) : $fs.scripts.lowsec(),
 	(sector?: string) =>
-		sector ? $fs.scripts.nullsec({ sector }) : $fs.scripts.nullsec(),
+		sector ? $fs.scripts.midsec({ sector }) : $fs.scripts.midsec(),
+	(sector?: string) =>
+		sector ? $fs.scripts.highsec({ sector }) : $fs.scripts.highsec(),
+	(sector?: string) =>
+		sector ? $fs.scripts.fullsec({ sector }) : $fs.scripts.fullsec(),
 ];
 
 const allSectors = (e: number) => {
@@ -48,19 +49,28 @@ const allSectors = (e: number) => {
 };
 
 export default (context: Context, args?: unknown) => {
-    $fs.maddy.analytics({ context, args });
-    
+	$fs.maddy.analytics({ context, args });
+
 	if (!isRecord(args)) return HELP_TEXT;
 
-	const page = "page" in args && typeof args.page === "number" ? args.page : 0;
-	const level =
-		"level" in args && typeof args.level === "number"
-			? args.level
-			: typeof args.level === "string"
-				? (SECLEVELS[args.level] ?? 0)
-				: 0;
+	const v = throwFailure($fs.maddy.v());
 
-	if (!PUBLICS[level]) return "level not in range 0-5";
+	const { page, level } = v
+		.object({
+			page: v.number("`Npage` must be an number >= 0").min(0).optional(0),
+			level: v
+				.number()
+				.min(0)
+				.max(4)
+				.or(
+					v
+						.string()
+						.refine((x) => x in SECLEVELS)
+						.map((x) => SECLEVELS[x]),
+					"`Nlevel` must be a valid sec level",
+				),
+		})
+		.parse(args);
 
 	const sectors = PUBLICS[level]() as string[];
 
@@ -77,7 +87,7 @@ export default (context: Context, args?: unknown) => {
 
 	const scripts = throwFailure(PUBLICS[level](sector));
 
-    $ms.chats.leave({ channel: sector });
+	$ms.chats.leave({ channel: sector });
 
 	if (context.calling_script) {
 		return scripts;

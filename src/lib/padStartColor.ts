@@ -1,4 +1,4 @@
-import { removeColour } from "./colour";
+import { removeColour } from "./colour.js";
 
 // String.padStart with support for colour codes
 export const padStart = (str: string, length: number, pad: string) => {
