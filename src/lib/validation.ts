@@ -20,6 +20,11 @@ interface Type<T> {
      */
     type: string;
 
+    /**
+     * The user set description of this property. Can be used to generate documentation.
+     */
+    description?: unknown;
+
     parse: (x: unknown, parent?: Type<unknown>) => T;
     refine: (func: (data: T) => boolean, message?: string) => Type<T>;
     // optional: (fallback?: T | undefined) => Type<T | undefined>;
@@ -29,6 +34,8 @@ interface Type<T> {
     array: () => Type<T[]>;
     or: <K>(other: Type<K>, message?: string) => Type<T | K>;
     map: <K>(transformation: (data: T) => K) => Type<K>;
+
+    describe: (description: unknown) => Type<T>;
 }
 
 class ValidationError extends Error {
@@ -54,11 +61,18 @@ export const parser = <T>(
         type,
         path: "$",
         parse: check,
-        map: (func) =>
-            parser(type, (data) => {
-                const parsed = check(data, r);
+        map: <K>(func: (data: T) => K) => {
+            const oldCheck = r.parse;
+
+            //@ts-ignore hatred...
+            r.parse = (data) => {
+                const parsed = oldCheck(data, r);
                 return func(parsed);
-            }),
+            }
+
+            // hatred....
+            return r as unknown as Type<K>;
+        },
         or: (other, message = `is not ${r.type}|${other.type}`) => {
             r.type += `|${other.type}`;
             const oldCheck = r.parse;
@@ -119,6 +133,10 @@ export const parser = <T>(
             };
 
             return r as Type<T[]>;
+        },
+        describe: (description) => {
+            r.description = description;
+            return r;
         }
     };
 

@@ -1,4 +1,4 @@
-export const wrapCatch = (func: (...rest: unknown[]) => unknown) => {
+export const wrapCatch = <T>(func: (...rest: unknown[]) => T): T | ScriptFailure => {
     try {
         return func();
     }

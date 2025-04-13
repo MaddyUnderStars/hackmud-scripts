@@ -36,7 +36,7 @@ export default (context: Context, args?: unknown): unknown => {
         const { q, after, before, user, show, run, no_brains } = v
             .object({
                 q: v
-                    .string("`Nq` must be a string")
+                    .string()
                     .refine((data) => {
                         if (data.includes("."))
                             return data.split(".")[0] === context.caller || IS_OWNER;
@@ -45,13 +45,10 @@ export default (context: Context, args?: unknown): unknown => {
                     .optional(),
                 after: RANGE_VALIDATOR,
                 before: RANGE_VALIDATOR,
-                user: v.string("`Nuser` must be a string").optional(),
+                user: v.string().optional(),
                 show: v
-                    .string('`Nshow`?: `V"users"`')
-                    .refine(
-                        (data) => ["users", "latest"].includes(data),
-                        "`Nshow` must be one of users,latest",
-                    )
+                    .string()
+                    .refine((data) => ["users", "latest"].includes(data), "must be one of `users`, `latest`")
                     .optional(),
                 run: v.string().optional(),
                 no_brains: v.boolean().optional(),
@@ -90,17 +87,17 @@ export default (context: Context, args?: unknown): unknown => {
                     script: q.includes(".") ? q : { $regex: q },
                     date: { $type: "date" },
                     caller: user ? user : { $ne: script_owner },
-                    is_brain: no_brains ? { $eq: false } : { $exists: true }
+                    is_brain: no_brains ? { $eq: false } : { $exists: true },
                 })
                 .sort({ date: -1 })
                 .limit(100)
-                .array()
-                // .filter((x) => {
-                //     if (x.custom)
-                //         //@ts-ignore
-                //         return !x.custom.context.calling_script?.includes(script_owner);
-                //     return true;
-                // });
+                .array();
+            // .filter((x) => {
+            //     if (x.custom)
+            //         //@ts-ignore
+            //         return !x.custom.context.calling_script?.includes(script_owner);
+            //     return true;
+            // });
         }
 
         const weekAgo = new Date();
@@ -117,7 +114,7 @@ export default (context: Context, args?: unknown): unknown => {
                 caller: user ? user : { $ne: script_owner },
             })
             .sort({ date: -1 })
-            .array()
+            .array();
 
         const grouped = groupBy(
             data,
@@ -176,7 +173,7 @@ export default (context: Context, args?: unknown): unknown => {
     }
 
     //@ts-ignore
-    const args_context: boolean | undefined = args?.context?.is_brain
+    const args_context: boolean | undefined = args?.context?.is_brain;
     const is_brain = context.is_brain || args_context || false;
 
     $db.i({
