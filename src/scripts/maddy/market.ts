@@ -1,4 +1,3 @@
-import { wrapCatch } from "/lib/catch";
 import { throwFailure } from "/lib/failure";
 import { isRecord } from "/lib/isRecord";
 import { mongoFilter } from "/lib/mongoFilter";
@@ -68,7 +67,7 @@ const preferredSortDir = {
 } as Record<string, number>;
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-export default (context: Context, args: any) => wrapCatch(() => {
+export default (context: Context, args: any) => {
 	$fs.maddy.analytics({ context, args });
 
 	if (!args) {
@@ -329,4 +328,4 @@ export default (context: Context, args: any) => wrapCatch(() => {
 			"\n\nwarning: too many listings, sort may be inaccurate. try refining your query.";
 
 	return ret;
-});
+};

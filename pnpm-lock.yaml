@@ -14,7 +14,7 @@ importers:
   .:
     devDependencies:
       hackmud-script-manager:
-        specifier: 0.21.2
+        specifier: latest
         version: 0.21.2(@babel/core@7.26.0)(typescript@5.7.2(patch_hash=t33fuoy5d7gnk76nfb77yfuzs4))
       typescript:
         specifier: 5.7.2

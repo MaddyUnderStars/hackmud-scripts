@@ -7,4 +7,4 @@ const schema = v.object({
     page_size: v.number().min(1).optional(50),
 });
 
-const ret = schema.parse({ page: -1 });
+const ret = schema.parse({ sort: [1] });

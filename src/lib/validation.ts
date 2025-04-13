@@ -20,7 +20,7 @@ interface Type<T> {
      */
     type: string;
 
-    parse: (x: unknown) => T;
+    parse: (x: unknown, parent?: Type<unknown>) => T;
     refine: (func: (data: T) => boolean, message?: string) => Type<T>;
     // optional: (fallback?: T | undefined) => Type<T | undefined>;
     optional: <K extends T | undefined>(
@@ -48,7 +48,7 @@ class ValidationError extends Error {
 
 export const parser = <T>(
     type: string,
-    check: (data: unknown) => T,
+    check: (data: unknown, parent?: Type<unknown>) => T,
 ) => {
     const r: Type<T> = {
         type,
@@ -56,25 +56,26 @@ export const parser = <T>(
         parse: check,
         map: (func) =>
             parser(type, (data) => {
-                const parsed = check.call(r, data);
+                const parsed = check(data, r);
                 return func(parsed);
             }),
-        or: (other, message = `is not ${type}|${other.type}`) => {
-            r.type = `${type}|${other.type}`;
+        or: (other, message = `is not ${r.type}|${other.type}`) => {
+            r.type += `|${other.type}`;
+            const oldCheck = r.parse;
             //@ts-ignore hatred...
             r.parse = (data) => {
-                const errors: ValidationError[] = []
+                const errors: ValidationError[] = [];
 
                 try {
-                    return check.call(r, data);
+                    return oldCheck(data, r);
                 } catch (e) {
                     if (e instanceof ValidationError) errors.push(e);
                 }
 
                 try {
-                    return other.parse.call(r, data);
+                    return other.parse(data, r);
                 } catch (e) {
-                    if (e instanceof ValidationError) errors.push(e)
+                    if (e instanceof ValidationError) errors.push(e);
                 }
 
                 throw new ValidationError(r.path, message, errors);
@@ -83,8 +84,9 @@ export const parser = <T>(
             return r;
         },
         refine: (func, message = "failed refinement") => {
+            const oldCheck = r.parse;
             r.parse = (data) => {
-                const ret = check.call(r, data);
+                const ret = oldCheck(data, r);
                 if (!func(ret))
                     throw new ValidationError(r.path, message);
                 return ret;
@@ -94,24 +96,26 @@ export const parser = <T>(
         },
         optional: (fallback) => {
             r.type += "?";
+            const oldCheck = r.parse;
             r.parse = (data) => {
                 if (data === undefined) {
                     if (fallback !== undefined) return fallback as T; // hatred...
                     return data as T;
                 }
 
-                return check.call(r, data);
+                return oldCheck(data, r);
             };
 
             return r;
         },
         array: (message = `is not a ${type}[]`) => {
             r.type += "[]";
+            const oldCheck = r.parse;
             //@ts-ignore hatred...
             r.parse = (data) => {
                 if (!Array.isArray(data))
                     throw new ValidationError(r.path, message);
-                return data.map((x) => check.call(r, x));
+                return data.map((x) => oldCheck(x, r));
             };
 
             return r as Type<T[]>;
@@ -126,21 +130,21 @@ type NumberType = Type<number> & {
     max: (max: number) => NumberType;
 };
 
-const _number = (check: (data: unknown) => number): NumberType => {
+const _number = (check: (data: unknown, parent?: Type<unknown>) => number): NumberType => {
     const ret: NumberType = {
         ...parser("number", check),
         min: (min, message = `must be greater than ${min}`) =>
-            _number(function (this: Type<number>, inner) {
-                const num = check.call(this, inner);
+            _number((inner, parent) => {
+                const num = check(inner, parent);
                 if (num < min)
-                    throw new ValidationError(this.path, message);
+                    throw new ValidationError(parent?.path ?? "$", message);
                 return num;
             }),
         max: (max, message = `must be less than ${max}`) =>
-            _number(function (this: Type<number>, inner) {
-                const num = check.call(this, inner);
+            _number((inner, parent) => {
+                const num = check(inner, parent);
                 if (num > max)
-                    throw new ValidationError(this.path, message);
+                    throw new ValidationError(parent?.path ?? "$", message);
                 return num;
             }),
     };
@@ -149,9 +153,9 @@ const _number = (check: (data: unknown) => number): NumberType => {
 };
 
 const number = (message = "is not number"): NumberType => {
-    const check = function (this: Type<number>, data: unknown) {
+    const check = (data: unknown, parent?: Type<unknown>) => {
         if (typeof data !== "number")
-            throw new ValidationError(ret.path, message);
+            throw new ValidationError(parent?.path ?? "$", message);
 
         return data;
     };
@@ -162,9 +166,9 @@ const number = (message = "is not number"): NumberType => {
 };
 
 const string = (message = "is not string"): Type<string> => {
-    const check = function (this: Type<string>, data: unknown) {
+    const check = (data: unknown, parent?: Type<unknown>) => {
         if (typeof data !== "string")
-            throw new ValidationError(this.path, message);
+            throw new ValidationError(parent?.path ?? "$", message);
 
         return data;
     };
@@ -175,10 +179,10 @@ const string = (message = "is not string"): Type<string> => {
 };
 
 const undef = (message = "is not undefined"): Type<undefined> => {
-    const check = function (this: Type<undefined>, data: unknown) {
+    const check = (data: unknown, parent?: Type<unknown>) => {
         if (data === undefined) return data;
 
-        throw new ValidationError(this.path, message);
+        throw new ValidationError(parent?.path ?? "$", message);
     };
 
     const ret = parser("undefined", check);
@@ -187,8 +191,8 @@ const undef = (message = "is not undefined"): Type<undefined> => {
 };
 
 const readableTime = (message = "is not a valid readable timestamp"): Type<number> => {
-    const check = function (this: Type<number>, data: unknown) {
-        if (typeof data !== "string") throw new ValidationError(this.path, message);
+    const check = (data: unknown, parent?: Type<unknown>) => {
+        if (typeof data !== "string") throw new ValidationError(parent?.path ?? "$", message);
 
         return fromReadableTime(data);
     };
@@ -217,43 +221,43 @@ const SECNAMES = {
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 const scriptor = <T extends any[]>(message = "is not a scriptor"): ScriptorType<T> => {
-    const check = function (this: Type<Scriptor>, data: unknown) {
+    const check = (data: unknown, parent?: Type<unknown>) => {
         if (!isScriptor(data))
-            throw new ValidationError(this.path, message);
+            throw new ValidationError(parent?.path ?? "$", message);
         return data;
     };
 
-    const seccheck = function (this: Type<Scriptor>, seclevel: keyof typeof SECNAMES, data: unknown) {
-        const d = check.call(ret, data);
+    const seccheck = (seclevel: keyof typeof SECNAMES, data: unknown, parent?: Type<unknown>) => {
+        const d = check(data, parent);
         const sec = $fs.scripts.get_level({ name: d.name });
-        if (isFailure(sec)) throw new ValidationError(this.path, "does not exist");
+        if (isFailure(sec)) throw new ValidationError(parent?.path ?? "$", "does not exist");
 
         if (sec !== seclevel)
-            throw new ValidationError(this.path, `is not ${SECNAMES[seclevel]}`);
+            throw new ValidationError(parent?.path ?? "$", `is not ${SECNAMES[seclevel]}`);
 
         return d;
     };
 
     const ret = {
         ...parser("scriptor", check),
-        fullsec: function (this: Type<Scriptor>) {
-            ret.parse = (d) => seccheck.call(this, 4, d);
+        fullsec: () => {
+            ret.parse = (d) => seccheck(4, d, ret);
             return ret;
         },
-        highsec: function (this: Type<Scriptor>) {
-            ret.parse = (d) => seccheck.call(this, 3, d);
+        highsec: () => {
+            ret.parse = (d) => seccheck(3, d, ret);
             return ret;
         },
-        midsec: function (this: Type<Scriptor>) {
-            ret.parse = (d) => seccheck.call(this, 2, d);
+        midsec: () => {
+            ret.parse = (d) => seccheck(2, d, ret);
             return ret;
         },
-        lowsec: function (this: Type<Scriptor>) {
-            ret.parse = (d) => seccheck.call(this, 1, d);
+        lowsec: () => {
+            ret.parse = (d) => seccheck(1, d, ret);
             return ret;
         },
-        nullsec: function (this: Type<Scriptor>) {
-            ret.parse = (d) => seccheck.call(this, 0, d);
+        nullsec: () => {
+            ret.parse = (d) => seccheck(0, d, ret);
             return ret;
         },
     };
@@ -262,9 +266,9 @@ const scriptor = <T extends any[]>(message = "is not a scriptor"): ScriptorType<
 };
 
 const boolean = (message = "is not a boolean") => {
-    const check = function (this: Type<boolean>, data: unknown) {
+    const check = (data: unknown, parent?: Type<unknown>) => {
         if (typeof data === "boolean") return data;
-        throw new ValidationError(this.path, message);
+        throw new ValidationError(parent?.path ?? "$", message);
     };
 
     const ret = parser("boolean", check);
@@ -273,8 +277,8 @@ const boolean = (message = "is not a boolean") => {
 };
 
 const object = <T extends RawShape>(inner: T, message = "is not an object"): Type<BaseObjectOutputType<T>> => {
-    const check = function (this: Type<BaseObjectOutputType<T>>, data: unknown) {
-        if (!isRecord(data)) throw new ValidationError(this.path, message);
+    const check = (data: unknown, parent?: Type<unknown>) => {
+        if (!isRecord(data)) throw new ValidationError(parent?.path ?? "$", message);
 
         const r: Record<string, unknown> = {};
 
